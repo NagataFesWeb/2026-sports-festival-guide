@@ -139,5 +139,4 @@ npm run entries # 出場競技表の CSV から静的データを生成（dev・
 
 CSVがない場合は空データを生成し、競技全体の案内を利用できます。ローカルのCSVは保持します。CSVを使ってデプロイした場合、従来どおり出場データはサイトの配信物に含まれるため、公開範囲は別途管理してください。
 
-GitHub Actionsはpush／Pull Request時に、追跡禁止ファイル・秘密情報パターン、テスト、Lint、ビルドを検査します。手元でもGitに追加した後に 
-ode scripts/check-repository.mjs で検査できます（氏名や画像の人手確認も必要）。
+GitHub Actionsはpush／Pull Request時に、追跡禁止ファイル・秘密情報パターン、テスト、Lint、ビルドを検査します。手元でもGitに追加した後に `node scripts/check-repository.mjs` で検査できます（氏名や画像の人手確認も必要）。
