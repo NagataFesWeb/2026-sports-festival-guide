@@ -1,0 +1,327 @@
+/* 実行委員 管理画面（/admin/*）だけの見た目。出典は docs/mockup の isAdmin アートボード。
+   トークンの値は docs/DESIGN.festival.md（om-*）と同じ。角丸なし・影は硬いオフセットのみ。
+   globals.css は他の移植作業と衝突するため触らず、この 1 ファイルにまとめる（クラスは adm- 接頭辞） */
+
+.adm-page {
+  /* 値の出典は globals.css の @theme（docs/DESIGN.festival.md）。ここでは別名にするだけで新しい色は作らない */
+  --adm-ink: var(--color-om-ink, #111111);
+  --adm-paper: var(--color-om-paper, #f5f2e9);
+  --adm-pink: var(--color-om-pink, #ff2d55);
+  --adm-yellow: var(--color-om-yellow, #ffe600);
+  --adm-blue: var(--color-om-blue, #245bff);
+  --adm-gray-1: var(--color-om-gray-1, #3a3733);
+  --adm-gray-2: var(--color-om-gray-2, #6f6a63);
+  --adm-gray-3: var(--color-om-gray-3, #8a857e);
+  --adm-line: var(--color-om-line, #e6e2d7);
+  /* カード内の淡い面（モックの #faf8f3） */
+  --adm-tint: #faf8f3;
+
+  min-height: 100dvh;
+  background-color: var(--adm-paper);
+  color: var(--adm-ink);
+  font-family: var(--font-jp, system-ui), sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.adm-page :focus-visible {
+  outline: 3px solid var(--adm-pink);
+  outline-offset: 2px;
+}
+
+/* ===== 黒帯（COMMITTEE CONSOLE） ===== */
+.adm-band {
+  background: var(--adm-ink);
+  color: var(--adm-paper);
+  padding: clamp(28px, 5vw, 46px) clamp(16px, 5vw, 40px) 18px;
+}
+.adm-band-label {
+  font-family: var(--font-display, "Anton"), sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.3em;
+  color: var(--adm-yellow);
+}
+.adm-band-title {
+  font-family: var(--font-om-mincho, "Shippori Mincho B1"), serif;
+  font-weight: 800;
+  font-size: clamp(20px, 4vw, 30px);
+  line-height: 1.2;
+  margin-top: 6px;
+}
+.adm-band-meta {
+  font-size: 11.5px;
+  color: rgba(245, 242, 233, 0.55);
+}
+
+/* ===== タブ（黒／黄のチップ） ===== */
+.adm-tabs {
+  border-bottom: 2px solid var(--adm-ink);
+  background: var(--adm-paper);
+  overflow-x: auto;
+}
+.adm-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--adm-ink);
+  background: var(--adm-ink);
+  color: var(--adm-paper);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.adm-tab[aria-current="page"] {
+  background: var(--adm-yellow);
+  color: var(--adm-ink);
+}
+
+/* ===== カード ===== */
+.adm-card {
+  background: #ffffff;
+  border: 2px solid var(--adm-ink);
+  box-shadow: 6px 6px 0 var(--adm-ink);
+  padding: clamp(14px, 3vw, 22px);
+}
+.adm-card[data-tone="dark"] {
+  background: var(--adm-ink);
+  border-color: var(--adm-pink);
+  color: var(--adm-paper);
+  box-shadow: 6px 6px 0 var(--adm-pink);
+}
+.adm-card[data-tone="dark"] code {
+  color: var(--adm-yellow);
+}
+
+/* セクション見出しと説明行 */
+.adm-title {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+.adm-subtitle {
+  font-size: 13px;
+  font-weight: 900;
+}
+.adm-note {
+  font-size: 11.5px;
+  color: var(--adm-gray-2);
+  line-height: 1.7;
+}
+.adm-card[data-tone="dark"] .adm-note {
+  color: rgba(245, 242, 233, 0.62);
+}
+.adm-label {
+  font-family: var(--font-display, "Anton"), sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--adm-yellow);
+}
+.adm-num {
+  font-family: var(--font-display, "Anton"), sans-serif;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.adm-time {
+  font-family: var(--font-display, "Anton"), sans-serif;
+  font-size: 19px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 行（1px の罫線で区切る） ===== */
+.adm-row {
+  background: var(--adm-tint);
+  border: 1px solid var(--adm-line);
+  padding: 8px 11px;
+}
+.adm-row[data-shifted="true"] {
+  background: #fffbe6;
+}
+.adm-list > * + * {
+  border-top: 1px solid var(--adm-line);
+}
+
+/* ===== ボタン ===== */
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 2px solid var(--adm-ink);
+  background: #ffffff;
+  color: var(--adm-ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.adm-btn[data-tone="primary"] {
+  background: var(--adm-yellow);
+}
+.adm-btn[data-tone="dark"] {
+  background: var(--adm-ink);
+  color: var(--adm-yellow);
+}
+.adm-btn[data-tone="ghost"] {
+  background: var(--adm-tint);
+  border-color: rgba(17, 17, 17, 0.3);
+  color: var(--adm-gray-2);
+}
+.adm-btn[data-tone="danger"] {
+  background: var(--adm-pink);
+  color: #ffffff;
+  box-shadow: 4px 4px 0 var(--adm-paper);
+}
+.adm-btn[data-size="sm"] {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 11px;
+}
+.adm-btn:active:not(:disabled) {
+  transform: translate(1px, 1px);
+}
+.adm-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ===== 入力 ===== */
+.adm-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 2px solid var(--adm-ink);
+  background: #ffffff;
+  color: var(--adm-ink);
+  font-family: inherit;
+  /* iOS で拡大されないよう 16px 以上 */
+  font-size: 16px;
+  line-height: 1.4;
+}
+textarea.adm-input {
+  min-height: 88px;
+  line-height: 1.6;
+}
+.adm-input[type="color"] {
+  padding: 4px;
+}
+.adm-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.adm-field > span {
+  font-size: 11.5px;
+  font-weight: 900;
+}
+.adm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.adm-check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--adm-pink);
+}
+
+/* ===== 表 ===== */
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.adm-table th,
+.adm-table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--adm-line);
+  text-align: left;
+  vertical-align: middle;
+}
+.adm-table thead th {
+  border-bottom: 2px solid var(--adm-ink);
+  background: var(--adm-tint);
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.adm-table caption {
+  text-align: left;
+  font-size: 11px;
+  color: var(--adm-gray-3);
+  padding-bottom: 4px;
+}
+
+/* ===== 小物 ===== */
+.adm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgba(17, 17, 17, 0.2);
+  background: #ffffff;
+  font-size: 10.5px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.adm-chip[data-tone="pink"] {
+  background: var(--adm-pink);
+  border-color: var(--adm-pink);
+  color: #ffffff;
+}
+.adm-chip[data-tone="yellow"] {
+  background: var(--adm-yellow);
+  border-color: var(--adm-ink);
+}
+.adm-chip[data-tone="blue"] {
+  background: var(--adm-blue);
+  border-color: var(--adm-blue);
+  color: #ffffff;
+}
+.adm-chip[data-tone="mute"] {
+  background: var(--adm-tint);
+  color: var(--adm-gray-2);
+}
+.adm-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(17, 17, 17, 0.35);
+}
+.adm-code {
+  background: var(--adm-line);
+  padding: 1px 5px;
+  font-size: 11.5px;
+}
+/* 操作結果（role="status"）。色だけで伝えないよう文言も併記する */
+.adm-status {
+  font-size: 12px;
+  min-width: 0;
+}
+.adm-status[data-ok="true"] {
+  color: var(--adm-blue);
+  font-weight: 900;
+}
+.adm-status[data-ok="false"] {
+  color: var(--adm-pink);
+  font-weight: 900;
+}
+/* 黒地カードの上では青が読めないので黄にする */
+.adm-card[data-tone="dark"] .adm-status[data-ok="true"] {
+  color: var(--adm-yellow);
+}
+.adm-scroll {
+  overflow-x: auto;
+}
+/* リンクは既定色を使わず本文色に揃える。:where で詳細度 0 にして
+   .adm-tab / .adm-btn（それ自体が色を持つ）を上書きしないようにする */
+:where(.adm-page) a {
+  color: inherit;
+}

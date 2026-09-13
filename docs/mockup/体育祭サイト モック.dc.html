@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reggae+One&family=Noto+Sans+JP:wght@400;700;900&family=Shippori+Mincho+B1:wght@600;800&family=Cormorant+Garamond:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0}
+body{background:#07100c;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#e2333a;text-decoration:none}
+a:hover{color:#f2711c}
+input,button,select{font-family:inherit}
+@keyframes om-spin{to{transform:rotate(360deg)}}
+@keyframes om-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes om-rise-l{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes om-pop{0%{transform:scale(.9);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+@keyframes om-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes om-blackout{0%{opacity:0}18%{opacity:1}82%{opacity:1}100%{opacity:0}}
+@keyframes om-neon{0%{opacity:0;letter-spacing:.6em;filter:blur(10px)}35%{opacity:1;letter-spacing:.22em;filter:blur(0)}70%{opacity:1;text-shadow:0 0 24px rgba(201,162,39,.9),0 0 60px rgba(201,162,39,.35)}100%{opacity:0}}
+@keyframes om-flicker{0%,100%{opacity:.85}42%{opacity:.5}44%{opacity:.95}62%{opacity:.6}}
+@keyframes om-pulse{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.35);opacity:0}}
+@keyframes om-shimmer{from{background-position:-220% 0}to{background-position:220% 0}}
+</style></helmet>
+
+<div style="min-height:100vh;position:relative;overflow-x:hidden;font-family:'Noto Sans JP',system-ui,sans-serif">
+
+<sc-if value="{{ dark }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;z-index:60;background:#04070a;display:flex;align-items:center;justify-content:center;animation:om-blackout 2000ms ease forwards;pointer-events:none">
+<div style="font-family:'Shippori Mincho B1',serif;font-weight:800;font-size:clamp(28px,7vw,58px);color:#e7c96a;animation:om-neon 2000ms ease forwards;text-align:center;line-height:1.5">深 夜 の 隠 れ カ ジ ノ<div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:.4em;letter-spacing:.3em;color:#8a7a4e;margin-top:14px">members only</div></div>
+</div>
+</sc-if>
+
+<canvas ref="{{ cvRef }}" style="position:fixed;inset:0;z-index:55;pointer-events:none;width:100%;height:100%"></canvas>
+
+<sc-if value="{{ showNav }}" hint-placeholder-val="{{ true }}">
+<div style="position:fixed;z-index:50;right:10px;bottom:10px;display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:min(94vw,560px);padding:6px;border-radius:12px;background:rgba(12,12,14,.86);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 24px rgba(0,0,0,.35)">
+<sc-for list="{{ navItems }}" as="n" hint-placeholder-count="6">
+<button onClick="{{ n.go }}" style="font-size:11px;font-weight:700;padding:5px 9px;border-radius:7px;cursor:pointer;border:1px solid {{ n.bd }};background:{{ n.bg }};color:{{ n.fg }}">{{ n.label }}</button>
+</sc-for>
+</div>
+</sc-if>
+
+<!-- ============ TOP ============ -->
+<sc-if value="{{ isTop }}" hint-placeholder-val="{{ true }}">
+<div style="background:#fff8ee;color:#1a1008;min-height:100vh">
+  <div style="position:relative;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#f0b429 0%,#f2711c 42%,#e2333a 78%,#a3111c 100%)">
+    <div style="position:absolute;top:-46vw;left:50%;width:120vw;height:120vw;margin-left:-60vw;animation:om-spin 44s linear infinite;background:repeating-conic-gradient(rgba(255,248,238,.16) 0deg 3deg,transparent 3deg 9deg);opacity:.75"></div>
+    <div style="position:relative;padding:clamp(52px,9vw,110px) 20px clamp(30px,5vw,54px);text-align:center">
+      <div style="font-size:11px;font-weight:900;letter-spacing:.4em;color:rgba(255,248,238,.8)">2026 SPORTS FESTIVAL</div>
+      <h1 style="margin:14px auto 0;max-width:14em;font-family:'Reggae One',cursive;font-weight:400;font-size:clamp(34px,8.6vw,86px);line-height:1.14;color:#fff8ee;text-shadow:0 5px 0 #7c0f18,0 10px 26px rgba(0,0,0,.3);text-wrap:balance">長田すぎて滅！<br>青春爆裂愛してる</h1>
+      <div style="margin:20px auto 0;display:inline-flex;flex-wrap:wrap;gap:8px;justify-content:center">
+        <span style="font-size:12px;font-weight:900;padding:7px 14px;border-radius:999px;background:#1a1008;color:#f0b429">9/26 SAT 8:30 開会</span>
+        <span style="font-size:12px;font-weight:900;padding:7px 14px;border-radius:999px;background:rgba(26,16,8,.22);color:#fff8ee;border:1px solid rgba(255,248,238,.5)">全8組・960人</span>
+      </div>
+    </div>
+    <div style="position:relative;overflow:hidden;background:#1a1008;padding:9px 0;border-top:3px solid #f0b429">
+      <div style="display:flex;width:200%;animation:om-marquee 26s linear infinite">
+        <div style="width:50%;display:flex;gap:34px;padding-left:34px;white-space:nowrap;font-size:12px;font-weight:900;letter-spacing:.1em;color:#f0b429">{{ tickerText }}</div>
+        <div style="width:50%;display:flex;gap:34px;padding-left:34px;white-space:nowrap;font-size:12px;font-weight:900;letter-spacing:.1em;color:#f0b429">{{ tickerText }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1080px;margin:0 auto;padding:clamp(26px,4vw,48px) 18px 90px;display:grid;gap:clamp(26px,4vw,44px)">
+    <section style="animation:om-rise .5s ease both">
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <h2 style="margin:0;font-family:'Reggae One',cursive;font-weight:400;font-size:clamp(22px,4.4vw,34px);color:#a3111c">得点速報</h2>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#9a7c5e"><span style="position:relative;width:7px;height:7px;border-radius:50%;background:#e2333a;display:inline-block"><span style="position:absolute;inset:0;border-radius:50%;background:#e2333a;animation:om-pulse 1.6s ease-out infinite"></span></span>LIVE ・ {{ lastUpdate }} 更新</span>
+      </div>
+      <div style="display:grid;gap:9px">
+        <sc-for list="{{ standings }}" as="t" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;background:#fff;border:1px solid rgba(26,16,8,.09);box-shadow:0 1px 0 rgba(26,16,8,.05);animation:om-rise-l .45s ease both">
+          <div style="font-family:'Reggae One',cursive;font-size:19px;color:{{ t.rankColor }};text-align:center">{{ t.rank }}</div>
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:14px"><span style="width:12px;height:12px;border-radius:3px;background:{{ t.color }};flex:none"></span>{{ t.name }}</div>
+            <div style="margin-top:7px;height:8px;border-radius:99px;background:rgba(26,16,8,.07);overflow:hidden"><div style="height:100%;border-radius:99px;background:{{ t.color }};width:{{ t.pct }}%;transition:width .8s cubic-bezier(.2,.8,.2,1)"></div></div>
+          </div>
+          <div style="text-align:right"><span style="font-family:'Reggae One',cursive;font-size:22px">{{ t.score }}</span><span style="font-size:11px;font-weight:700;color:#9a7c5e;margin-left:3px">pt</span></div>
+        </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 14px;font-family:'Reggae One',cursive;font-weight:400;font-size:clamp(22px,4.4vw,34px);color:#a3111c">プログラム・組み合わせ</h2>
+      <div style="display:grid;gap:10px">
+        <sc-for list="{{ program }}" as="e" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:clamp(12px,2.5vw,22px);padding:14px clamp(13px,2.5vw,20px);border-radius:16px;background:{{ e.bg }};border:1px solid rgba(26,16,8,.1)">
+          <div style="text-align:center;padding-right:clamp(12px,2.5vw,20px);border-right:2px dotted rgba(26,16,8,.18)">
+            <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(20px,4vw,28px);line-height:1">{{ e.time }}</div>
+            <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:#9a7c5e;margin-top:3px">{{ e.status }}</div>
+          </div>
+          <div style="min-width:0">
+            <div style="font-weight:900;font-size:clamp(15px,3vw,18px)">{{ e.name }}</div>
+            <div style="font-size:12px;color:#7d6450;margin-top:3px">{{ e.location }}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">
+              <sc-for list="{{ e.chips }}" as="c" hint-placeholder-count="4">
+              <span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:999px;color:#fff8ee;background:{{ c.color }}">{{ c.name }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="padding:clamp(20px,4vw,32px);border-radius:20px;background:#1a1008;color:#fff8ee;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-family:'Reggae One',cursive;font-size:clamp(19px,3.6vw,26px);color:#f0b429">自分の招集案内を見る</div>
+        <div style="font-size:12px;color:rgba(255,248,238,.66);margin-top:5px">学籍番号を入れれば集合時間と場所が出ます。走れ。</div>
+      </div>
+      <button onClick="{{ goMe }}" style="cursor:pointer;border:none;font-weight:900;font-size:14px;padding:14px 26px;border-radius:999px;background:linear-gradient(#f0b429,#f2711c);color:#3d1206;box-shadow:0 5px 0 #a3111c">マイページへ →</button>
+    </section>
+  </div>
+
+  <footer style="background:#12100e;color:rgba(255,248,238,.42);padding:26px 18px 34px;text-align:center;font-size:11px">
+    <div>体育祭実行委員会 ・ 2026</div>
+    <div style="margin-top:12px;display:flex;justify-content:center;gap:14px;align-items:center">
+      <span>お問い合わせ</span><span>・</span><span>校内限定公開</span><span>・</span>
+      <button onClick="{{ enterDark }}" title="♠" style="cursor:pointer;border:none;background:transparent;color:rgba(255,248,238,.2);font-size:13px;padding:4px 6px;line-height:1">♠</button>
+    </div>
+  </footer>
+</div>
+</sc-if>
+
+<!-- ============ ME ============ -->
+<sc-if value="{{ isMe }}" hint-placeholder-val="{{ false }}">
+<div style="background:#fff8ee;color:#1a1008;min-height:100vh;padding-bottom:80px">
+  <div style="background:linear-gradient(120deg,#a3111c,#e2333a 55%,#f2711c);padding:clamp(52px,8vw,74px) 18px clamp(26px,4vw,38px)">
+    <div style="max-width:900px;margin:0 auto;color:#fff8ee">
+      <div style="font-size:11px;font-weight:900;letter-spacing:.3em;opacity:.8">MY PAGE</div>
+      <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:8px">
+        <div style="font-family:'Reggae One',cursive;font-size:clamp(26px,5.4vw,40px)">{{ me.name }}</div>
+        <div style="font-size:12px;font-weight:700;opacity:.85;padding-bottom:6px">{{ me.grade }} ・ 学籍番号 {{ me.id }} ・ {{ me.team }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:900px;margin:0 auto;padding:clamp(20px,3.4vw,32px) 18px;display:grid;gap:22px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+      <div style="padding:16px 18px;border-radius:16px;background:#fff;border:1px solid rgba(26,16,8,.1)">
+        <div style="font-size:11px;font-weight:900;color:#9a7c5e;letter-spacing:.08em">所持ポイント</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:34px;line-height:1.1;margin-top:4px">{{ pointsText }}</div>
+      </div>
+      <div style="padding:16px 18px;border-radius:16px;background:#fff;border:1px solid {{ debtBorder }}">
+        <div style="font-size:11px;font-weight:900;color:#9a7c5e;letter-spacing:.08em">借金額</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:34px;line-height:1.1;margin-top:4px;color:{{ debtColor }}">{{ debtText }}</div>
+      </div>
+      <div style="padding:16px 18px;border-radius:16px;background:#1a1008;color:#f0b429">
+        <div style="font-size:11px;font-weight:900;letter-spacing:.08em;opacity:.7">純資産</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:34px;line-height:1.1;margin-top:4px">{{ netText }}</div>
+      </div>
+    </div>
+
+    <section>
+      <h2 style="margin:0 0 12px;font-family:'Reggae One',cursive;font-weight:400;font-size:clamp(20px,4vw,28px);color:#a3111c">招集案内</h2>
+      <div style="display:grid;gap:9px">
+        <sc-for list="{{ invites }}" as="i" hint-placeholder-count="3">
+        <div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:13px 16px;border-radius:14px;background:#fff;border:1px solid rgba(26,16,8,.1);border-left:5px solid {{ i.accent }}">
+          <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;line-height:1">{{ i.time }}</div>
+          <div><div style="font-weight:900;font-size:14px">{{ i.event }}</div><div style="font-size:12px;color:#7d6450;margin-top:2px">{{ i.place }}</div></div>
+          <div style="font-size:10px;font-weight:900;padding:5px 9px;border-radius:999px;background:{{ i.tagBg }};color:{{ i.tagFg }};white-space:nowrap">{{ i.tag }}</div>
+        </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 12px;font-family:'Reggae One',cursive;font-weight:400;font-size:clamp(20px,4vw,28px);color:#a3111c">ベット履歴</h2>
+      <sc-if value="{{ hasHistory }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;gap:8px">
+        <sc-for list="{{ history }}" as="h" hint-placeholder-count="2">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px 15px;border-radius:13px;background:#0d1f18;color:#f2e9d8;font-size:13px">
+          <div style="min-width:0"><div style="font-weight:700">{{ h.market }}</div><div style="font-size:11px;color:rgba(242,233,216,.6);margin-top:2px">{{ h.pick }} ・ {{ h.amount }} pt</div></div>
+          <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:18px;color:{{ h.resultColor }};white-space:nowrap">{{ h.result }}</div>
+        </div>
+        </sc-for>
+      </div>
+      </sc-if>
+      <sc-if value="{{ noHistory }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px;border-radius:14px;border:1px dashed rgba(26,16,8,.2);text-align:center;font-size:13px;color:#7d6450">ベット履歴はありません。</div>
+      </sc-if>
+    </section>
+
+    <div style="text-align:center;padding-top:6px">
+      <button onClick="{{ enterDark }}" style="cursor:pointer;border:none;background:transparent;color:rgba(26,16,8,.16);font-size:15px;padding:8px 12px">♠</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ CASINO ENTER ============ -->
+<sc-if value="{{ isEnter }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:radial-gradient(90% 70% at 50% 0%,#123024 0%,#07100c 70%);color:#f2e9d8;display:flex;align-items:center;justify-content:center;padding:70px 18px 40px;font-family:'Shippori Mincho B1',serif">
+  <div style="width:100%;max-width:400px;animation:om-pop .8s cubic-bezier(.2,.9,.2,1) both">
+    <div style="text-align:center;margin-bottom:26px">
+      <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;letter-spacing:.34em;color:#8a7a4e;animation:om-flicker 5s infinite">members only</div>
+      <div style="font-weight:800;font-size:clamp(24px,6vw,34px);letter-spacing:.14em;margin-top:8px;color:#e7c96a;text-shadow:0 0 26px rgba(201,162,39,.4)">深夜の隠れカジノ</div>
+    </div>
+    <div style="padding:26px 22px;border-radius:6px;background:linear-gradient(#0f2419,#0a1a12);border:1px solid rgba(201,162,39,.32);box-shadow:0 30px 70px rgba(0,0,0,.6)">
+      <div style="font-size:12px;color:rgba(242,233,216,.66);line-height:1.8;margin-bottom:16px">{{ enterHint }}</div>
+      <input type="password" value="{{ pwInput }}" onChange="{{ onPw }}" placeholder="パスワード" style="width:100%;padding:13px 15px;border-radius:4px;border:1px solid rgba(201,162,39,.34);background:rgba(0,0,0,.45);color:#f2e9d8;font-size:15px;letter-spacing:.2em;outline:none">
+      <sc-if value="{{ pwError }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:10px;font-size:12px;color:#e8695f;font-family:'Noto Sans JP',sans-serif;font-weight:700">パスワードが違います。</div>
+      </sc-if>
+      <button onClick="{{ submitPw }}" style="width:100%;margin-top:18px;cursor:pointer;border:1px solid rgba(201,162,39,.6);border-radius:4px;padding:14px;font-family:'Shippori Mincho B1',serif;font-weight:800;font-size:15px;letter-spacing:.18em;color:#0a1a12;background:linear-gradient(#e7c96a,#c9a227)">{{ enterCta }}</button>
+      <div style="margin-top:16px;font-size:10.5px;color:rgba(242,233,216,.34);font-family:'Noto Sans JP',sans-serif;line-height:1.7">サイト内ポイントのみを使用します。実際の金銭は一切扱いません。</div>
+    </div>
+    <div style="text-align:center;margin-top:18px"><button onClick="{{ goTop }}" style="cursor:pointer;background:transparent;border:none;color:rgba(242,233,216,.4);font-size:11.5px;font-family:'Noto Sans JP',sans-serif">← 表の世界に戻る</button></div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ CASINO ============ -->
+<sc-if value="{{ isCasino }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:#07100c;color:#f2e9d8;padding-bottom:110px;font-family:'Shippori Mincho B1',serif">
+  <div style="position:relative;overflow:hidden;padding:clamp(54px,8vw,76px) 18px clamp(22px,3vw,30px);background:radial-gradient(80% 130% at 50% -20%,#163a2a,#07100c);border-bottom:1px solid rgba(201,162,39,.22)">
+    <div style="max-width:980px;margin:0 auto;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between">
+      <div>
+        <div style="font-family:'Cormorant Garamond',serif;font-style:italic;letter-spacing:.3em;font-size:12px;color:#8a7a4e">table no.8 ・ pari-mutuel</div>
+        <div style="font-weight:800;font-size:clamp(22px,5vw,32px);letter-spacing:.1em;color:#e7c96a;margin-top:6px">深夜の隠れカジノ</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="padding:10px 16px;border-radius:4px;background:rgba(0,0,0,.4);border:1px solid rgba(201,162,39,.3);min-width:120px">
+          <div style="font-size:10px;letter-spacing:.14em;color:#8a7a4e;font-family:'Noto Sans JP',sans-serif;font-weight:700">所持ポイント</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;line-height:1.15;color:#f2e9d8">{{ displayPointsText }}</div>
+        </div>
+        <div style="padding:10px 16px;border-radius:4px;background:rgba(0,0,0,.4);border:1px solid {{ debtBorderDark }};min-width:120px">
+          <div style="font-size:10px;letter-spacing:.14em;color:#8a7a4e;font-family:'Noto Sans JP',sans-serif;font-weight:700">借金額</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;line-height:1.15;color:{{ debtColorDark }}">{{ debtText }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:980px;margin:14px auto 0;padding:0 18px"><div style="padding:13px 17px;border-radius:4px;background:linear-gradient(90deg,rgba(201,162,39,.2),rgba(201,162,39,.05));border:1px solid rgba(201,162,39,.45);font-size:13px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:#e7c96a;animation:om-rise .35s ease both">{{ toast }}</div></div>
+  </sc-if>
+
+  <div style="max-width:980px;margin:0 auto;padding:clamp(18px,3vw,26px) 18px;display:grid;gap:20px">
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+      <div style="padding:16px 18px;border-radius:5px;background:linear-gradient(#0f2419,#0a1a12);border:1px solid rgba(201,162,39,.24)">
+        <div style="font-family:'Noto Sans JP',sans-serif;font-weight:900;font-size:12px;color:#e7c96a">借りる</div>
+        <div style="font-size:11px;color:rgba(242,233,216,.5);font-family:'Noto Sans JP',sans-serif;margin-top:4px">1回500ptまで。結果発表ごとに利子{{ interestPct }}%。</div>
+        <div style="display:flex;gap:7px;margin-top:12px;flex-wrap:wrap">
+          <sc-for list="{{ borrowOpts }}" as="b" hint-placeholder-count="3">
+          <button onClick="{{ b.go }}" style="flex:1;min-width:74px;cursor:pointer;padding:10px 0;border-radius:3px;border:1px solid rgba(201,162,39,.45);background:rgba(201,162,39,.1);color:#e7c96a;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px">+{{ b.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:16px 18px;border-radius:5px;background:linear-gradient(#0f2419,#0a1a12);border:1px solid rgba(201,162,39,.24)">
+        <div style="font-family:'Noto Sans JP',sans-serif;font-weight:900;font-size:12px;color:#e7c96a">返済</div>
+        <div style="font-size:11px;color:rgba(242,233,216,.5);font-family:'Noto Sans JP',sans-serif;margin-top:4px">所持ポイントから借金に充当します。</div>
+        <div style="display:flex;gap:7px;margin-top:12px;flex-wrap:wrap">
+          <sc-for list="{{ repayOpts }}" as="r" hint-placeholder-count="3">
+          <button onClick="{{ r.go }}" style="flex:1;min-width:74px;cursor:pointer;padding:10px 0;border-radius:3px;border:1px solid rgba(242,233,216,.2);background:transparent;color:{{ r.fg }};font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px">{{ r.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <sc-for list="{{ marketCards }}" as="m" hint-placeholder-count="3">
+    <div style="border-radius:6px;background:linear-gradient(#103023,#0a1a12);border:1px solid rgba(201,162,39,.24);overflow:hidden;animation:om-rise .5s ease both">
+      <div style="padding:15px 18px;border-bottom:1px solid rgba(201,162,39,.16);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:rgba(0,0,0,.2)">
+        <div>
+          <div style="font-weight:800;font-size:clamp(15px,3vw,19px);letter-spacing:.06em;color:#f2e9d8">{{ m.title }}</div>
+          <div style="font-size:11px;color:rgba(242,233,216,.5);font-family:'Noto Sans JP',sans-serif;margin-top:3px">締切 {{ m.deadline }} ・ 総賭け金 {{ m.poolText }} pt</div>
+        </div>
+        <div style="font-size:10.5px;font-weight:900;font-family:'Noto Sans JP',sans-serif;padding:5px 11px;border-radius:999px;background:{{ m.badgeBg }};color:{{ m.badgeFg }};letter-spacing:.08em">{{ m.badge }}</div>
+      </div>
+
+      <div style="padding:8px 10px">
+        <sc-for list="{{ m.rows }}" as="r" hint-placeholder-count="4">
+        <div onClick="{{ r.select }}" style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 10px;border-radius:4px;cursor:{{ r.cursor }};background:{{ r.rowBg }};border:1px solid {{ r.rowBd }};margin-bottom:5px;transition:background .18s,border-color .18s">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800"><span style="width:10px;height:10px;border-radius:2px;background:{{ r.color }};flex:none"></span>{{ r.name }}<span style="font-size:10.5px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:{{ r.myFg }}">{{ r.myLabel }}</span></div>
+            <div style="margin-top:6px;height:4px;border-radius:99px;background:rgba(242,233,216,.1);overflow:hidden"><div style="height:100%;background:{{ r.color }};width:{{ r.pct }}%;transition:width .5s ease"></div></div>
+          </div>
+          <div style="text-align:right;font-family:'Noto Sans JP',sans-serif;font-size:10.5px;color:rgba(242,233,216,.45);white-space:nowrap">{{ r.poolText }} pt</div>
+          <div style="text-align:right;min-width:62px"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:22px;color:{{ r.oddsFg }}">{{ r.odds }}</span><span style="font-size:11px;color:rgba(242,233,216,.4)">倍</span></div>
+        </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ m.showPad }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 18px;border-top:1px solid rgba(201,162,39,.2);background:rgba(0,0,0,.28)">
+        <div style="font-size:12px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:#e7c96a;margin-bottom:10px">{{ m.padLabel }}</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <sc-for list="{{ m.chips }}" as="c" hint-placeholder-count="4">
+          <button onClick="{{ c.go }}" style="flex:1;min-width:70px;cursor:pointer;padding:11px 0;border-radius:3px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font-family:'Cormorant Garamond',serif;font-weight:600;font-size:18px">{{ c.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ m.hasMine }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:12px 18px;border-top:1px solid rgba(201,162,39,.14);display:grid;gap:6px">
+        <sc-for list="{{ m.mine }}" as="b" hint-placeholder-count="1">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;font-family:'Noto Sans JP',sans-serif">
+          <div style="color:rgba(242,233,216,.72)"><span style="font-weight:900;color:{{ b.color }}">{{ b.team }}</span> に {{ b.amount }} pt</div>
+          <sc-if value="{{ b.cancelable }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ b.cancel }}" style="cursor:pointer;font-size:11px;font-weight:700;padding:5px 11px;border-radius:3px;border:1px solid rgba(232,105,95,.5);background:transparent;color:#e8695f">取り消す</button>
+          </sc-if>
+          <sc-if value="{{ b.settledLabel }}" hint-placeholder-val="{{ false }}">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:17px;color:{{ b.payColor }}">{{ b.settledLabel }}</div>
+          </sc-if>
+        </div>
+        </sc-for>
+      </div>
+      </sc-if>
+    </div>
+    </sc-for>
+
+    <div style="text-align:center;padding-top:4px"><button onClick="{{ goTop }}" style="cursor:pointer;background:transparent;border:none;color:rgba(242,233,216,.35);font-size:11.5px;font-family:'Noto Sans JP',sans-serif">← 表の世界に戻る</button></div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ RANKING ============ -->
+<sc-if value="{{ isRanking }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:#fff8ee;color:#1a1008;padding-bottom:80px">
+  <div style="background:linear-gradient(120deg,#1a1008,#3d1206 60%,#a3111c);padding:clamp(54px,8vw,80px) 18px clamp(28px,4vw,40px);text-align:center;color:#fff8ee">
+    <div style="font-size:11px;font-weight:900;letter-spacing:.34em;color:#f0b429">FINAL STANDINGS</div>
+    <div style="font-family:'Reggae One',cursive;font-size:clamp(26px,6vw,44px);margin-top:10px">最終順位ランキング</div>
+    <div style="font-size:12px;opacity:.7;margin-top:8px">純資産（所持ポイント − 借金額）順</div>
+  </div>
+  <sc-if value="{{ rankingLocked }}" hint-placeholder-val="{{ true }}">
+  <div style="max-width:520px;margin:clamp(30px,6vw,60px) auto;padding:0 18px;text-align:center">
+    <div style="padding:36px 24px;border-radius:18px;border:2px dashed rgba(26,16,8,.18);background:#fff">
+      <div style="font-size:30px">🔒</div>
+      <div style="font-weight:900;font-size:16px;margin-top:12px">体育祭終了後に公開されます</div>
+      <div style="font-size:12.5px;color:#7d6450;margin-top:8px;line-height:1.7">実行委員が管理画面で「最終精算」を実行すると、全員の純資産ランキングが出ます。</div>
+      <button onClick="{{ goAdmin }}" style="margin-top:18px;cursor:pointer;border:none;font-weight:900;font-size:13px;padding:12px 22px;border-radius:999px;background:#1a1008;color:#f0b429">管理画面で精算する（モック）</button>
+    </div>
+  </div>
+  </sc-if>
+  <sc-if value="{{ rankingOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:760px;margin:0 auto;padding:clamp(20px,4vw,34px) 18px;display:grid;gap:8px">
+    <sc-for list="{{ ranking }}" as="r" hint-placeholder-count="8">
+    <div style="display:grid;grid-template-columns:46px 1fr auto;gap:12px;align-items:center;padding:13px 15px;border-radius:14px;background:{{ r.bg }};border:1px solid {{ r.bd }};animation:om-rise .4s ease both">
+      <div style="font-family:'Reggae One',cursive;font-size:{{ r.rankSize }};color:{{ r.rankColor }};text-align:center;line-height:1">{{ r.rank }}</div>
+      <div style="min-width:0">
+        <div style="font-weight:900;font-size:14px">{{ r.name }}<span style="font-size:11px;font-weight:700;color:#9a7c5e;margin-left:7px">{{ r.tag }}</span></div>
+        <div style="font-size:11px;color:#7d6450;margin-top:3px">所持 {{ r.points }} pt ・ 借金 {{ r.debt }} pt</div>
+      </div>
+      <div style="text-align:right;white-space:nowrap"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;color:{{ r.netColor }}">{{ r.net }}</span><span style="font-size:11px;color:#9a7c5e;margin-left:2px">pt</span></div>
+    </div>
+    </sc-for>
+  </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ============ ADMIN ============ -->
+<sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:#f4f1ec;color:#1a1008;padding-bottom:90px">
+  <div style="background:#1a1008;color:#fff8ee;padding:clamp(52px,7vw,66px) 18px 20px">
+    <div style="max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between">
+      <div><div style="font-size:10.5px;font-weight:900;letter-spacing:.3em;color:#f0b429">COMMITTEE CONSOLE</div><div style="font-family:'Reggae One',cursive;font-size:clamp(20px,4vw,30px);margin-top:6px">実行委員 管理画面</div></div>
+      <div style="font-size:11.5px;color:rgba(255,248,238,.6)">committee@example.com としてログイン中</div>
+    </div>
+  </div>
+
+  <div style="max-width:1000px;margin:0 auto;padding:clamp(18px,3vw,28px) 18px;display:grid;gap:18px">
+    <section style="padding:clamp(16px,3vw,22px);border-radius:16px;background:#fff;border:1px solid rgba(26,16,8,.1)">
+      <div style="font-weight:900;font-size:14px;margin-bottom:4px">得点入力</div>
+      <div style="font-size:11.5px;color:#7d6450;margin-bottom:14px">押すとトップページの速報に即反映されます。</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px">
+        <sc-for list="{{ adminTeams }}" as="t" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:7px;align-items:center;padding:9px 11px;border-radius:11px;background:#faf7f2;border:1px solid rgba(26,16,8,.08)">
+          <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:900;min-width:0"><span style="width:10px;height:10px;border-radius:3px;background:{{ t.color }};flex:none"></span>{{ t.name }}<span style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;margin-left:2px">{{ t.score }}</span></div>
+          <button onClick="{{ t.plus1 }}" style="cursor:pointer;border:1px solid rgba(26,16,8,.18);background:#fff;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:900">+1</button>
+          <button onClick="{{ t.plus5 }}" style="cursor:pointer;border:none;background:#e2333a;color:#fff;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:900">+5</button>
+        </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="padding:clamp(16px,3vw,22px);border-radius:16px;background:#fff;border:1px solid rgba(26,16,8,.1)">
+      <div style="font-weight:900;font-size:14px;margin-bottom:4px">Market の結果確定</div>
+      <div style="font-size:11.5px;color:#7d6450;margin-bottom:14px">勝者を押すと配当が自動計算され、借金保有者に利子{{ interestPct }}%が付きます。</div>
+      <div style="display:grid;gap:11px">
+        <sc-for list="{{ adminMarkets }}" as="m" hint-placeholder-count="3">
+        <div style="padding:13px 15px;border-radius:13px;background:#faf7f2;border:1px solid rgba(26,16,8,.09)">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+            <div style="font-weight:900;font-size:13px">{{ m.title }}</div>
+            <div style="font-size:10.5px;font-weight:900;padding:4px 10px;border-radius:999px;background:{{ m.badgeBg }};color:{{ m.badgeFg }}">{{ m.badge }}</div>
+          </div>
+          <sc-if value="{{ m.pickable }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:11px">
+            <sc-for list="{{ m.options }}" as="o" hint-placeholder-count="4">
+            <button onClick="{{ o.go }}" style="cursor:pointer;border:1px solid rgba(26,16,8,.16);background:#fff;border-radius:8px;padding:7px 11px;font-size:11.5px;font-weight:900;display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:{{ o.color }}"></span>{{ o.name }} 勝ち</button>
+            </sc-for>
+          </div>
+          </sc-if>
+          <sc-if value="{{ m.resultLabel }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:10px;font-size:12px;font-weight:900;color:#a3111c">{{ m.resultLabel }}</div>
+          </sc-if>
+        </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="padding:clamp(16px,3vw,22px);border-radius:16px;background:#fff;border:1px solid rgba(26,16,8,.1)">
+      <div style="font-weight:900;font-size:14px;margin-bottom:4px">招集案内 CSV アップロード</div>
+      <div style="font-size:11.5px;color:#7d6450;margin-bottom:14px">学籍番号・種目名・集合時間・場所の4列。</div>
+      <div style="padding:24px;border-radius:12px;border:2px dashed rgba(26,16,8,.2);text-align:center;background:#faf7f2">
+        <div style="font-size:12.5px;font-weight:700;color:#7d6450">{{ csvLabel }}</div>
+        <button onClick="{{ uploadCsv }}" style="margin-top:12px;cursor:pointer;border:none;background:#1a1008;color:#f0b429;border-radius:999px;padding:10px 20px;font-size:12px;font-weight:900">ファイルを選択（モック）</button>
+      </div>
+    </section>
+
+    <section style="padding:clamp(16px,3vw,22px);border-radius:16px;background:#2a0d10;color:#fff8ee;border:1px solid rgba(226,51,58,.5)">
+      <div style="font-weight:900;font-size:14px;color:#f0b429">最終精算</div>
+      <div style="font-size:11.5px;color:rgba(255,248,238,.66);margin-top:5px;line-height:1.7">全生徒の所持ポイントから借金額を引いて確定し、以降の借入れ・返済を停止します。<code style="color:#f0b429">/ranking</code> が公開されます。取り消せません。</div>
+      <button onClick="{{ finalSettle }}" style="margin-top:14px;cursor:pointer;border:none;border-radius:999px;padding:13px 24px;font-size:13px;font-weight:900;background:{{ settleBtnBg }};color:{{ settleBtnFg }}">{{ settleBtnLabel }}</button>
+    </section>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showMockNav&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;モック設定&quot;},&quot;interestPercent&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:10,&quot;min&quot;:0,&quot;max&quot;:30,&quot;step&quot;:1,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;モック設定&quot;}}">
+const TEAMS = [
+  { id: 't1', name: '1組 紅蓮', color: '#e2333a', score: 128 },
+  { id: 't2', name: '2組 蒼天', color: '#2f6fd0', score: 141 },
+  { id: 't3', name: '3組 黄雷', color: '#f0b429', score: 96 },
+  { id: 't4', name: '4組 翠嵐', color: '#2fa96b', score: 118 },
+  { id: 't5', name: '5組 紫電', color: '#8b5cf6', score: 87 },
+  { id: 't6', name: '6組 橙火', color: '#f2711c', score: 133 },
+  { id: 't7', name: '7組 桃嵐', color: '#ef5da8', score: 74 },
+  { id: 't8', name: '8組 黒鉄', color: '#3f4756', score: 109 }
+];
+
+const PROGRAM = [
+  { time: '9:00', name: '100m 走 予選', location: 'トラック', status: '終了', teams: ['t1', 't3', 't5', 't7'] },
+  { time: '9:40', name: '大縄跳び', location: 'メイングラウンド', status: '終了', teams: ['t2', 't4', 't6', 't8'] },
+  { time: '10:30', name: '棒引き', location: '南側フィールド', status: '進行中', teams: ['t1', 't2', 't3', 't4'] },
+  { time: '11:20', name: '騎馬戦', location: 'メイングラウンド', status: '次', teams: ['t5', 't6', 't7', 't8'] },
+  { time: '13:00', name: '組別ダンス', location: 'ステージ前', status: '予定', teams: ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8'] },
+  { time: '14:20', name: '色別対抗リレー', location: 'トラック', status: '予定', teams: ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8'] }
+];
+
+const INVITES = [
+  { time: '10:20', event: '棒引き', place: '南側フィールド 集合線A', tag: '10分前集合' },
+  { time: '13:00', event: '組別ダンス', place: 'ステージ前 3列目', tag: '衣装着用' },
+  { time: '14:10', event: '色別対抗リレー（第3走）', place: 'トラック 招集テント', tag: 'ゼッケン必須' }
+];
+
+const OTHERS = [
+  { name: '中村 涼太', id: '2104', p: 4820, d: 0 },
+  { name: '林 みなみ', id: '1233', p: 3610, d: 500 },
+  { name: '大原 蒼真', id: '3018', p: 2980, d: 0 },
+  { name: '佐々木 結衣', id: '2251', p: 2140, d: 605 },
+  { name: '岡田 悠', id: '1147', p: 1730, d: 0 },
+  { name: '藤本 花', id: '3122', p: 1180, d: 0 },
+  { name: '真田 一馬', id: '2077', p: 640, d: 1331 },
+  { name: '高橋 剛', id: '1305', p: 320, d: 0 },
+  { name: '西野 陽菜', id: '3241', p: 80, d: 2662 }
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: 'top',
+    dark: false,
+    pw: null,
+    pwInput: '',
+    pwError: false,
+    points: 1000,
+    display: 1000,
+    debt: 0,
+    teams: TEAMS.map(t => ({ ...t })),
+    sel: {},
+    toast: '',
+    csvDone: false,
+    finalSettled: false,
+    markets: [
+      { id: 'm0', title: '体育祭 全体優勝', deadline: '13:30', status: 'open', pool: { t1: 4200, t2: 5100, t3: 1800, t4: 3300, t5: 900, t6: 4600, t7: 700, t8: 2400 }, mine: [], winner: null },
+      { id: 'm1', title: '棒引き 勝者', deadline: '10:25', status: 'open', pool: { t1: 1600, t2: 2400, t3: 800, t4: 1200 }, mine: [], winner: null },
+      { id: 'm2', title: '騎馬戦 勝者', deadline: '11:10', status: 'open', pool: { t5: 900, t6: 2100, t7: 600, t8: 1500 }, mine: [], winner: null },
+      { id: 'm3', title: '大縄跳び 勝者', deadline: '9:35', status: 'closed', pool: { t2: 1900, t4: 1100, t6: 2600, t8: 800 }, mine: [{ id: 'b0', team: 't6', amount: 300 }], winner: null }
+    ]
+  };
+
+  yen(n) { return Math.floor(n).toLocaleString('en-US'); }
+  team(id) { return this.state.teams.find(t => t.id === id) || { name: '?', color: '#888' }; }
+  poolTotal(m) { return Object.values(m.pool).reduce((a, b) => a + b, 0); }
+
+  go(screen) {
+    this.setState({ screen, toast: '' });
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }
+
+  enterDark = () => {
+    this.setState({ dark: true });
+    setTimeout(() => this.setState({ screen: this.state.pw ? 'enter' : 'enter', pwInput: '', pwError: false }), 850);
+    setTimeout(() => this.setState({ dark: false }), 2050);
+  };
+
+  submitPw = () => {
+    const v = this.state.pwInput.trim();
+    if (!v) { this.setState({ pwError: true }); return; }
+    if (!this.state.pw) { this.setState({ pw: v, screen: 'casino', pwInput: '', pwError: false, toast: '口座を作成しました。初期ポイント 1,000pt を付与。' }); return; }
+    if (v === this.state.pw) this.setState({ screen: 'casino', pwInput: '', pwError: false, toast: '' });
+    else this.setState({ pwError: true });
+  };
+
+  tween(to) {
+    const from = this.state.display;
+    const t0 = performance.now();
+    const step = () => {
+      const k = Math.min(1, (performance.now() - t0) / 700);
+      const e = 1 - Math.pow(1 - k, 3);
+      this.setState({ display: Math.round(from + (to - from) * e) });
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  setPoints(v, msg) { this.setState({ points: v, toast: msg || '' }); this.tween(v); }
+
+  borrow(amount) {
+    if (this.state.finalSettled) { this.setState({ toast: '最終精算済みのため借入れできません。' }); return; }
+    this.setState({ debt: this.state.debt + amount });
+    this.setPoints(this.state.points + amount, amount + 'pt 借りました。返せるうちに返そうね。');
+  }
+
+  repay(amount) {
+    const a = Math.min(amount, this.state.points, this.state.debt);
+    if (this.state.finalSettled || a <= 0) { this.setState({ toast: this.state.debt <= 0 ? '借金はありません。' : 'ポイントが足りません。' }); return; }
+    this.setState({ debt: this.state.debt - a });
+    this.setPoints(this.state.points - a, a + 'pt 返済しました。');
+  }
+
+  bet(marketId, teamId, amount) {
+    if (amount <= 0) return;
+    if (amount > this.state.points) { this.setState({ toast: 'ポイント不足です。「借りる」で補充できます。' }); return; }
+    const markets = this.state.markets.map(m => {
+      if (m.id !== marketId) return m;
+      const pool = { ...m.pool, [teamId]: (m.pool[teamId] || 0) + amount };
+      return { ...m, pool, mine: [...m.mine, { id: 'b' + Date.now(), team: teamId, amount }] };
+    });
+    this.setState({ markets, sel: { ...this.state.sel, [marketId]: null } });
+    this.setPoints(this.state.points - amount, this.team(teamId).name + ' に ' + this.yen(amount) + 'pt。テーブルに置かれた。');
+  }
+
+  cancelBet(marketId, betId) {
+    const m = this.state.markets.find(x => x.id === marketId);
+    const b = m.mine.find(x => x.id === betId);
+    if (!b) return;
+    const markets = this.state.markets.map(x => x.id !== marketId ? x : { ...x, pool: { ...x.pool, [b.team]: x.pool[b.team] - b.amount }, mine: x.mine.filter(y => y.id !== betId) });
+    this.setState({ markets });
+    this.setPoints(this.state.points + b.amount, this.yen(b.amount) + 'pt を取り消しました。');
+  }
+
+  settle(marketId, winner) {
+    const m = this.state.markets.find(x => x.id === marketId);
+    if (!m || m.status === 'settled') return;
+    const total = this.poolTotal(m);
+    const win = m.pool[winner] || 0;
+    let payout = 0;
+    const mine = m.mine.map(b => {
+      const p = (b.team === winner && win > 0) ? Math.floor(total / win * b.amount) : 0;
+      payout += p;
+      return { ...b, payout: p };
+    });
+    const markets = this.state.markets.map(x => x.id !== marketId ? x : { ...x, status: 'settled', winner, mine });
+    const rate = this.props.interestPercent ?? 10;
+    const debt = this.state.debt > 0 ? Math.floor(this.state.debt * (1 + rate / 100)) : 0;
+    this.setState({ markets, debt });
+    const msg = payout > 0
+      ? m.title + '：' + this.team(winner).name + ' 的中！ 配当 ' + this.yen(payout) + 'pt'
+      : m.title + '：' + this.team(winner).name + ' の勝ち。あなたのベットは没収。';
+    this.setPoints(this.state.points + payout, msg + (this.state.debt > 0 ? ' ／ 借金に利子' + rate + '%' : ''));
+    if (payout > 0) this.confetti();
+  }
+
+  finalSettle = () => {
+    if (this.state.finalSettled) { this.go('ranking'); return; }
+    this.setState({ finalSettled: true, netSnapshot: { p: this.state.points, d: this.state.debt } });
+    this.setPoints(this.state.points - this.state.debt, '');
+    setTimeout(() => this.setState({ debt: 0, screen: 'ranking' }), 400);
+  };
+
+  confetti() {
+    const cv = this.cv;
+    if (!cv) return;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
+    const ctx = cv.getContext('2d');
+    const cols = ['#c9a227', '#e7c96a', '#f2e9d8', '#2fa96b', '#e2333a'];
+    const parts = Array.from({ length: 110 }, () => ({
+      x: cv.width * (0.2 + Math.random() * 0.6), y: cv.height * 0.35,
+      vx: (Math.random() - 0.5) * 13 * dpr, vy: (-9 - Math.random() * 9) * dpr,
+      w: (5 + Math.random() * 6) * dpr, h: (3 + Math.random() * 5) * dpr,
+      r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, c: cols[(Math.random() * cols.length) | 0]
+    }));
+    const t0 = performance.now();
+    const draw = () => {
+      const el = performance.now() - t0;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      parts.forEach(p => {
+        p.vy += 0.42 * dpr; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.vx *= 0.992;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+        ctx.globalAlpha = Math.max(0, 1 - el / 2600); ctx.fillStyle = p.c;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+      });
+      if (el < 2600) requestAnimationFrame(draw); else ctx.clearRect(0, 0, cv.width, cv.height);
+    };
+    requestAnimationFrame(draw);
+  }
+
+  renderVals() {
+    const s = this.state, P = this.props;
+    const scr = s.screen;
+    const max = Math.max(...s.teams.map(t => t.score));
+    const ranked = [...s.teams].sort((a, b) => b.score - a.score);
+    const medal = ['#f0b429', '#b9a48a', '#c98c4a'];
+    const net = s.points - s.debt;
+
+    const standings = ranked.map((t, i) => ({
+      rank: i + 1, name: t.name, color: t.color, score: t.score,
+      pct: Math.round(t.score / max * 100), rankColor: medal[i] || '#c9bdb0'
+    }));
+
+    const statusBg = { '進行中': 'linear-gradient(90deg,#fff2d9,#fff)', '次': '#fffdf7' };
+    const program = PROGRAM.map(e => ({
+      time: e.time, name: e.name, location: e.location, status: e.status,
+      bg: statusBg[e.status] || '#fff',
+      chips: e.teams.map(id => ({ name: this.team(id).name.slice(0, 2), color: this.team(id).color }))
+    }));
+
+    const invites = INVITES.map((i, k) => ({
+      ...i, accent: ['#e2333a', '#f2711c', '#f0b429'][k % 3],
+      tagBg: k === 0 ? '#e2333a' : 'rgba(26,16,8,.08)', tagFg: k === 0 ? '#fff8ee' : '#7d6450'
+    }));
+
+    const history = [];
+    s.markets.forEach(m => m.mine.forEach(b => {
+      const settled = m.status === 'settled';
+      history.push({
+        market: m.title, pick: this.team(b.team).name, amount: this.yen(b.amount),
+        result: settled ? (b.payout > 0 ? '+' + this.yen(b.payout) : '没収') : (m.status === 'closed' ? '集計中' : '受付中'),
+        resultColor: settled ? (b.payout > 0 ? '#e7c96a' : '#e8695f') : 'rgba(242,233,216,.55)'
+      });
+    }));
+
+    const badge = {
+      open: { badge: '受付中', badgeBg: 'rgba(47,169,107,.2)', badgeFg: '#5fd6a0' },
+      closed: { badge: '集計中', badgeBg: 'rgba(242,233,216,.12)', badgeFg: 'rgba(242,233,216,.7)' },
+      settled: { badge: '確定', badgeBg: 'rgba(201,162,39,.25)', badgeFg: '#e7c96a' }
+    };
+
+    const marketCards = s.markets.map(m => {
+      const total = this.poolTotal(m);
+      const selTeam = s.sel[m.id];
+      const open = m.status === 'open' && !s.finalSettled;
+      const rows = Object.keys(m.pool).map(id => {
+        const t = this.team(id);
+        const amt = m.pool[id];
+        const mineAmt = m.mine.filter(b => b.team === id).reduce((a, b) => a + b.amount, 0);
+        const isWin = m.winner === id;
+        return {
+          teamId: id, name: t.name, color: t.color, poolText: this.yen(amt),
+          pct: total ? Math.round(amt / total * 100) : 0,
+          odds: amt > 0 ? (total / amt).toFixed(2) : '—',
+          oddsFg: isWin ? '#5fd6a0' : '#e7c96a',
+          myLabel: isWin ? '◎ 勝者' : (mineAmt ? '自分 ' + this.yen(mineAmt) + 'pt' : ''),
+          myFg: isWin ? '#5fd6a0' : '#8a7a4e',
+          cursor: open ? 'pointer' : 'default',
+          rowBg: selTeam === id ? 'rgba(201,162,39,.16)' : (isWin ? 'rgba(47,169,107,.1)' : 'rgba(0,0,0,.18)'),
+          rowBd: selTeam === id ? 'rgba(201,162,39,.6)' : (isWin ? 'rgba(47,169,107,.4)' : 'transparent'),
+          select: open ? () => this.setState({ sel: { ...s.sel, [m.id]: selTeam === id ? null : id } }) : () => {}
+        };
+      });
+      const chipVals = [100, 300, 500, Math.min(s.points, 2000)];
+      return {
+        id: m.id, title: m.title, deadline: m.deadline, poolText: this.yen(total), ...badge[m.status],
+        rows,
+        showPad: !!selTeam && open,
+        padLabel: selTeam ? this.team(selTeam).name + ' に賭ける金額（所持 ' + this.yen(s.points) + 'pt）' : '',
+        chips: chipVals.map((v, i) => ({
+          label: i === 3 ? '全額' : this.yen(v),
+          bd: v > s.points ? 'rgba(242,233,216,.14)' : 'rgba(201,162,39,.5)',
+          bg: v > s.points ? 'transparent' : 'linear-gradient(#e7c96a,#c9a227)',
+          fg: v > s.points ? 'rgba(242,233,216,.3)' : '#0a1a12',
+          go: () => this.bet(m.id, selTeam, Math.min(v, s.points))
+        })),
+        hasMine: m.mine.length > 0,
+        mine: m.mine.map(b => ({
+          team: this.team(b.team).name, color: this.team(b.team).color, amount: this.yen(b.amount),
+          cancelable: open, cancel: () => this.cancelBet(m.id, b.id),
+          settledLabel: m.status === 'settled' ? (b.payout > 0 ? '+' + this.yen(b.payout) + ' pt' : '没収') : '',
+          payColor: b.payout > 0 ? '#5fd6a0' : '#e8695f'
+        }))
+      };
+    });
+
+    const adminMarkets = s.markets.map(m => ({
+      title: m.title, ...badge[m.status],
+      pickable: m.status !== 'settled',
+      options: Object.keys(m.pool).map(id => ({ name: this.team(id).name, color: this.team(id).color, go: () => this.settle(m.id, id) })),
+      resultLabel: m.winner ? '確定：' + this.team(m.winner).name + ' 勝ち' : ''
+    }));
+
+    const meRow = { name: '田中 陽向', id: '2117', p: (s.netSnapshot ? s.netSnapshot.p : s.points), d: (s.netSnapshot ? s.netSnapshot.d : s.debt), me: true };
+    const ranking = [...OTHERS, meRow].map(r => ({ ...r, net: r.p - r.d }))
+      .sort((a, b) => b.net - a.net)
+      .map((r, i) => ({
+        rank: i + 1, name: r.name, tag: r.me ? 'あなた' : r.id,
+        points: this.yen(r.p), debt: this.yen(r.d), net: this.yen(r.net),
+        rankSize: i < 3 ? '26px' : '19px',
+        rankColor: medal[i] || '#c9bdb0',
+        netColor: r.net < 0 ? '#e2333a' : '#1a1008',
+        bg: r.me ? 'linear-gradient(90deg,#fff2d9,#fff)' : '#fff',
+        bd: r.me ? '#f0b429' : 'rgba(26,16,8,.1)'
+      }));
+
+    const navDefs = [['top', 'トップ'], ['me', 'マイページ'], ['enter', '入場'], ['casino', 'カジノ'], ['ranking', 'ランキング'], ['admin', '管理']];
+
+    return {
+      showNav: P.showMockNav ?? true,
+      dark: s.dark,
+      cvRef: el => { this.cv = el; },
+      isTop: scr === 'top', isMe: scr === 'me', isEnter: scr === 'enter',
+      isCasino: scr === 'casino', isRanking: scr === 'ranking', isAdmin: scr === 'admin',
+      navItems: navDefs.map(([k, label]) => ({
+        label, go: () => this.go(k),
+        bg: scr === k ? '#f0b429' : 'transparent',
+        fg: scr === k ? '#1a1008' : 'rgba(255,255,255,.72)',
+        bd: scr === k ? '#f0b429' : 'rgba(255,255,255,.18)'
+      })),
+      goTop: () => this.go('top'), goMe: () => this.go('me'), goAdmin: () => this.go('admin'),
+      enterDark: this.enterDark,
+      tickerText: '速報 ・ 棒引き 進行中 ・ 現在1位 ' + ranked[0].name + ' ' + ranked[0].score + 'pt ・ 次は 11:20 騎馬戦 ・ 水分をとれ ・ 声を出せ ・ ',
+      lastUpdate: '10:42',
+      standings, program, invites,
+      history, hasHistory: history.length > 0, noHistory: history.length === 0,
+      me: { name: '田中 陽向', id: '2117', grade: '2年C組', team: '6組 橙火' },
+      pointsText: this.yen(s.points), displayPointsText: this.yen(s.display),
+      debtText: this.yen(s.debt), netText: this.yen(net),
+      debtColor: s.debt > 0 ? '#e2333a' : '#1a1008',
+      debtBorder: s.debt > 0 ? 'rgba(226,51,58,.5)' : 'rgba(26,16,8,.1)',
+      debtColorDark: s.debt > 0 ? '#e8695f' : '#f2e9d8',
+      debtBorderDark: s.debt > 0 ? 'rgba(232,105,95,.5)' : 'rgba(201,162,39,.3)',
+      interestPct: P.interestPercent ?? 10,
+      pwInput: s.pwInput,
+      onPw: e => this.setState({ pwInput: e.target.value, pwError: false }),
+      submitPw: this.submitPw,
+      pwError: s.pwError,
+      enterHint: s.pw ? 'おかえりなさい。パスワードを入力してください。' : '初回の方はパスワードを設定してください。口座を作成し、初期ポイント1,000ptを付与します。',
+      enterCta: s.pw ? '入場する' : '口座を作成して入場',
+      toast: s.toast,
+      borrowOpts: [100, 300, 500].map(v => ({ label: this.yen(v), go: () => this.borrow(v) })),
+      repayOpts: [{ label: this.yen(500), v: 500 }, { label: this.yen(1000), v: 1000 }, { label: '全額', v: s.debt }].map(o => ({
+        label: o.label, fg: o.v > 0 && s.debt > 0 ? '#f2e9d8' : 'rgba(242,233,216,.3)', go: () => this.repay(o.v)
+      })),
+      marketCards,
+      adminTeams: s.teams.map(t => ({
+        name: t.name, color: t.color, score: t.score,
+        plus1: () => this.setState({ teams: s.teams.map(x => x.id === t.id ? { ...x, score: x.score + 1 } : x) }),
+        plus5: () => this.setState({ teams: s.teams.map(x => x.id === t.id ? { ...x, score: x.score + 5 } : x) })
+      })),
+      adminMarkets,
+      csvLabel: s.csvDone ? 'invite_2026.csv ・ 960件を取り込みました' : 'CSVをドロップ、またはファイルを選択',
+      uploadCsv: () => this.setState({ csvDone: true }),
+      finalSettle: this.finalSettle,
+      settleBtnLabel: s.finalSettled ? '精算済み ・ ランキングを見る' : '最終精算を実行する',
+      settleBtnBg: s.finalSettled ? '#f0b429' : '#e2333a',
+      settleBtnFg: s.finalSettled ? '#1a1008' : '#fff8ee',
+      rankingLocked: !s.finalSettled, rankingOpen: s.finalSettled, ranking
+    };
+  }
+}
+</script>
+</body>
+</html>

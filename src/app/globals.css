@@ -1,0 +1,815 @@
+@import "tailwindcss";
+
+/* 裏画面「NAGATA UNDERGROUND」のトークン（docs/DESIGN.underground.md） */
+@theme {
+  --color-lcd-text: #c8e6a6;
+  --color-lcd-hi: #eaf7dc;
+  --color-lcd-sel: #9fe07a;
+  --color-lcd-mid: #8fbf6e;
+  --color-lcd-dim: #7f9a68;
+  --color-lcd-faint: #6b8257;
+  --color-lcd-mute: #455737;
+  --color-lcd-ink: #0b1207;
+  --color-lcd-red: #ff4a3d;
+  --color-lcd-ok: #7ce07c;
+  --color-cab-label: #6d635b;
+  --color-cab-text: #9c9188;
+
+  /* 表画面「爆裂」のトークン（docs/DESIGN.festival.md。出典はモック v2 の CSS。値は変えない） */
+  --color-om-ink: #111111;
+  --color-om-paper: #f5f2e9;
+  --color-om-pink: #ff2d55;
+  --color-om-yellow: #ffe600;
+  --color-om-blue: #245bff;
+  --color-om-gray-1: #3a3733;
+  --color-om-gray-2: #6f6a63;
+  --color-om-gray-3: #8a857e;
+  --color-om-line: #e6e2d7;
+}
+
+@theme inline {
+  --font-display: var(--font-anton), "Anton", "Arial Narrow", sans-serif;
+  --font-term: var(--font-share-tech-mono), ui-monospace, Consolas, monospace;
+  --font-jp: var(--font-noto-sans-jp), system-ui, sans-serif;
+  /* 表画面: 日本語の大見出し（モック v2） */
+  --font-om-mincho: var(--font-shippori-mincho), "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== 表画面「爆裂」（モック v2 の移植） =====
+   出典は docs/mockup/体育祭サイト モック v2 爆裂.dc.html。
+   キーフレームと背景パターンだけをここに置き、色・余白・字送りは Tailwind（om-* トークン）で書く */
+
+.om-page {
+  position: relative;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  color: var(--color-om-ink);
+  background: var(--color-om-paper);
+  font-family: var(--font-jp);
+}
+.om-page a {
+  color: var(--color-om-pink);
+  text-decoration: none;
+}
+.om-page a:hover {
+  color: var(--color-om-blue);
+}
+.om-page :focus-visible {
+  outline: 3px solid var(--color-om-pink);
+  outline-offset: 2px;
+}
+
+/* 斜線の写真枠（ABOUT） */
+.om-stripes {
+  background: repeating-linear-gradient(45deg, var(--color-om-line) 0 10px, var(--color-om-paper) 10px 20px);
+}
+/* 大縄跳びの隊形図のロープ */
+.om-rope-line {
+  background: repeating-linear-gradient(90deg, rgba(245, 242, 233, 0.8) 0 9px, transparent 9px 15px);
+}
+/* 隊形図は横スクロールさせるが、スクロールバーは出さない */
+.om-noscroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.om-noscroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* マーキー：200% 幅の中に同じ文字列を 2 枚並べて半分ぶん動かす（overflow:hidden の中だけで動く） */
+.om-marquee-clip {
+  overflow: hidden;
+}
+.om-marquee-row {
+  display: flex;
+  width: 200%;
+}
+.om-marquee-row > * {
+  width: 50%;
+  white-space: nowrap;
+}
+.om-marquee-jp {
+  animation: om-marquee 22s linear infinite;
+}
+.om-marquee-en {
+  animation: om-marquee-r 28s linear infinite;
+}
+.om-marquee-band {
+  animation: om-marquee 18s linear infinite;
+}
+
+.om-rise {
+  animation: om-rise 0.45s ease both;
+}
+.om-rise-l {
+  animation: om-rise-l 0.45s ease both;
+}
+.om-fade {
+  animation: om-rise 0.25s ease both;
+}
+.om-pop {
+  animation: om-pop 0.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.om-shake {
+  animation: om-shake 260ms ease 1 both;
+}
+.om-slam {
+  animation: om-slam 900ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+/* 赤青のグリッチ二重像。92% の間は非表示で、たまに一瞬ずれる */
+.om-glitch {
+  animation: om-glitch 7s steps(1) infinite;
+}
+.om-glitch-b {
+  animation: om-glitch 7s steps(1) 0.08s infinite;
+}
+.om-drift {
+  animation: om-drift 5s ease-in-out infinite;
+}
+.om-err {
+  animation: om-err 0.7s ease both;
+}
+.om-bar {
+  animation: om-bar 1.2s linear both;
+}
+.om-caret {
+  animation: om-caret 1s steps(1) infinite;
+}
+.om-pulse {
+  animation: om-pulse 1.8s ease-in-out infinite;
+}
+
+/* 表→裏の切替演出：暗転 → SYSTEM ERROR → ネオン点灯 */
+.om-blackout {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+  background: #050403;
+  animation: om-err 350ms ease both;
+}
+.om-neon {
+  color: var(--color-lcd-sel);
+  animation: om-neonon 900ms steps(3) both;
+}
+
+@keyframes om-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes om-rise-l {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes om-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes om-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes om-marquee-r {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes om-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+@keyframes om-shake {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-9px, 5px);
+  }
+  40% {
+    transform: translate(8px, -4px);
+  }
+  60% {
+    transform: translate(-5px, -6px);
+  }
+  80% {
+    transform: translate(4px, 3px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes om-slam {
+  0% {
+    opacity: 0;
+    transform: scale(2.4) rotate(-6deg);
+    filter: blur(14px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(0);
+    filter: blur(0);
+  }
+  75% {
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes om-glitch {
+  0%,
+  92%,
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  93% {
+    transform: translate(-6px, 2px);
+    opacity: 0.9;
+  }
+  95% {
+    transform: translate(5px, -3px);
+    opacity: 0.75;
+  }
+  97% {
+    transform: translate(-3px, -1px);
+    opacity: 0.6;
+  }
+}
+@keyframes om-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-14px) rotate(8deg);
+  }
+}
+@keyframes om-err {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes om-neonon {
+  from {
+    opacity: 0;
+    text-shadow: none;
+  }
+  to {
+    opacity: 1;
+    text-shadow: 0 0 14px currentColor, 0 0 46px currentColor;
+  }
+}
+@keyframes om-bar {
+  from {
+    width: 4%;
+  }
+  to {
+    width: 100%;
+  }
+}
+@keyframes om-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .om-page *,
+  .om-page *::before,
+  .om-page *::after,
+  .om-blackout,
+  .om-blackout * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ===== 筐体（CABINET）：塗装した金属パネル。液晶の色は使わない ===== */
+.ug-stage {
+  height: 100dvh;
+  min-height: 430px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(6px, 2vw, 20px) clamp(4px, 2vw, 22px);
+  background: radial-gradient(120% 80% at 50% 0%, #191614, #0b0908 60%, #050403);
+  font-family: var(--font-term);
+}
+
+.ug-cabinet {
+  width: 100%;
+  max-width: 880px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(9px, 1.6vw, 16px);
+  background: linear-gradient(#3a332f, #241f1d 30%, #15110f);
+  border: 1px solid #4a413c;
+  border-bottom-color: #0c0a09;
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.ug-stage :focus-visible {
+  outline: 1px dashed var(--color-lcd-sel);
+  outline-offset: 2px;
+}
+
+/* 状態LED */
+.ug-led {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #2b3324, #171c12);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.ug-led[data-tone="power"] {
+  background: radial-gradient(circle at 35% 30%, #fff6df, #c9b48a);
+  box-shadow: 0 0 6px rgba(255, 236, 200, 0.55), inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.ug-led[data-tone="ready"] {
+  background: radial-gradient(circle at 35% 30%, #f2ffe4, #9dbd80);
+  box-shadow: 0 0 6px rgba(200, 230, 166, 0.5), inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.ug-led[data-tone="armed"],
+.ug-led[data-tone="ok"] {
+  background: radial-gradient(circle at 35% 30%, #c8ffc8, #3aa83a);
+  box-shadow: 0 0 9px rgba(124, 224, 124, 0.85), inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.ug-led[data-tone="alert"] {
+  background: radial-gradient(circle at 35% 30%, #ff9a90, #c2160c);
+  box-shadow: 0 0 9px rgba(255, 74, 61, 0.85), inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* SOUND トグルスイッチ */
+.ug-switch {
+  position: relative;
+  display: inline-block;
+  width: 30px;
+  height: 18px;
+  background: linear-gradient(#15110f, #241f1d);
+  border: 1px solid #0f0c0b;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85);
+}
+.ug-switch::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  bottom: 3px;
+  width: 12px;
+  background: linear-gradient(#cbc0b5, #8d8177 55%, #5f564f);
+  border: 1px solid #100d0c;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 120ms cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+.ug-switch[data-on="true"]::after {
+  transform: translateX(12px);
+}
+
+/* CREDIT METER：反射型の小型液晶 */
+.ug-meter {
+  padding: 3px;
+  background: linear-gradient(#15110f, #241f1d);
+  border: 1px solid #0c0a09;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+.ug-meter-face {
+  position: relative;
+  overflow: hidden;
+  width: clamp(104px, 26vw, 132px);
+  padding: 3px 9px 4px;
+  color: #16210f;
+  background: linear-gradient(#9db184, #87a06d 60%, #7b945f);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+}
+.ug-meter-face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(20, 33, 15, 0.07) 0 1px, transparent 1px 2px);
+}
+
+/* ハードウェアキー */
+.ug-fkey {
+  flex: 1;
+  min-width: 72px;
+  min-height: 46px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: #a89c92;
+  font: 700 11px/1.3 var(--font-term);
+  letter-spacing: 0.12em;
+  background: linear-gradient(#332c29, #1d1917);
+  border: 1px solid #4a413c;
+  border-top-color: #6b615a;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  box-shadow: 0 2px 0 #100d0c;
+  transition: transform 70ms linear;
+}
+.ug-fkey:active:not(:disabled),
+.ug-fkey[data-latched="true"] {
+  color: #efffe0;
+  background: linear-gradient(#1a1615, #2b2523);
+  border-color: #0f0c0b;
+  border-top-color: #241f1d;
+  text-shadow: 0 0 6px rgba(200, 230, 166, 0.85), 0 0 16px rgba(159, 224, 122, 0.5);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.8);
+  transform: translateY(2px);
+}
+.ug-fkey:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ug-back {
+  flex: 0 0 92px;
+  min-height: 54px;
+  cursor: pointer;
+  color: #c9beb2;
+  font: 700 11.5px/1.3 var(--font-term);
+  letter-spacing: 0.16em;
+  background: repeating-linear-gradient(135deg, #2b2724 0 3px, #201c1a 3px 6px);
+  border: 1px solid #0d0b0a;
+  border-top-color: #453d3a;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9);
+  box-shadow: 0 3px 0 #100d0c;
+  transition: transform 70ms linear;
+}
+.ug-back:active {
+  color: #efe6da;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.9);
+  transform: translateY(3px);
+}
+
+.ug-enter {
+  flex: 1;
+  min-height: 54px;
+  cursor: pointer;
+  color: #ffe7d8;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.24em;
+  border-radius: 3px;
+  background: linear-gradient(#c22e2a, #8f1d1c 42%, #5d1211);
+  border: 1px solid #a83a33;
+  border-top-color: #e07a70;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 0 #3d0b0b, 0 6px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 60ms linear;
+}
+.ug-enter[data-ready="false"] {
+  color: #7a5c58;
+  background: linear-gradient(#3a1918, #26100f);
+  border-color: #3b2422;
+  border-top-color: #4a2e2b;
+}
+.ug-enter:active {
+  background: linear-gradient(#4d0f0e, #7d1a19 70%, #8f1d1c);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.85), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  transform: translateY(4px);
+}
+
+/* ===== 液晶（LCD）：緑単色。周辺減光・走査線・像の甘さ ===== */
+.ug-lcd {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--color-lcd-text);
+  border: 1px solid #090c07;
+  /* 上4層は輝度ムラ（液晶パネルの個体差）。均一に光らせない */
+  background:
+    radial-gradient(38% 32% at 22% 18%, rgba(200, 230, 166, 0.025), transparent 70%),
+    radial-gradient(30% 26% at 78% 34%, rgba(200, 230, 166, 0.018), transparent 72%),
+    radial-gradient(46% 40% at 58% 84%, rgba(0, 0, 0, 0.17), transparent 70%),
+    radial-gradient(28% 24% at 8% 76%, rgba(0, 0, 0, 0.14), transparent 74%),
+    radial-gradient(ellipse at center, rgba(52, 80, 36, 0.16) 0%, rgba(6, 11, 4, 0.86) 60%, #020402 100%);
+  box-shadow: inset 0 0 48px rgba(0, 0, 0, 0.96), inset 0 0 3px rgba(200, 230, 166, 0.08);
+}
+.ug-lcd::before,
+.ug-lcd::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.ug-lcd::before {
+  background: repeating-linear-gradient(0deg, rgba(200, 230, 166, 0.045) 0 1px, transparent 1px 3px);
+}
+.ug-lcd::after {
+  background: radial-gradient(115% 95% at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+.ug-lcd-body {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 110px;
+  overflow-y: auto;
+  padding: clamp(12px, 2.4vw, 20px);
+  font-size: 13px;
+  line-height: 1.75;
+  filter: blur(0.15px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(159, 224, 122, 0.4) rgba(14, 22, 10, 0.9);
+}
+/* スクロールバーも液晶の部品に見せる（走査線入りの溝＋角ばったつまみ） */
+.ug-lcd-body::-webkit-scrollbar {
+  width: 10px;
+}
+.ug-lcd-body::-webkit-scrollbar-track {
+  background: repeating-linear-gradient(0deg, rgba(159, 224, 122, 0.05) 0 1px, transparent 1px 3px), rgba(10, 16, 7, 0.9);
+  border-left: 1px solid rgba(200, 230, 166, 0.16);
+}
+.ug-lcd-body::-webkit-scrollbar-thumb {
+  background: rgba(159, 224, 122, 0.28);
+  border: 1px solid rgba(159, 224, 122, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(10, 16, 7, 0.8);
+}
+.ug-lcd-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(159, 224, 122, 0.44);
+}
+.ug-lcd-body::-webkit-scrollbar-thumb:active {
+  background: rgba(159, 224, 122, 0.6);
+}
+
+/* 選択中の行：液晶らしくムラを残した反転 */
+.ug-sel {
+  color: var(--color-lcd-ink);
+  background: linear-gradient(100deg, rgba(159, 224, 122, 0.62), rgba(159, 224, 122, 0.5) 45%, rgba(159, 224, 122, 0.66));
+}
+
+/* 主要表示のみの RGB ずれ */
+.ug-rgb {
+  text-shadow: -1px 0 rgba(255, 74, 61, 0.25), 1px 0 rgba(124, 224, 124, 0.2);
+}
+
+/* カーソル移動時に1回だけ走る走査線 */
+.ug-row {
+  position: relative;
+  overflow: hidden;
+}
+.ug-row::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(200, 230, 166, 0.3), transparent);
+}
+.ug-row[data-cursor="true"]::after {
+  animation: ug-sweep 260ms linear 1;
+}
+
+.ug-caret {
+  animation: ug-caret 1s steps(1) infinite;
+}
+.ug-flash {
+  animation: ug-flash 420ms steps(2) 1;
+}
+.ug-pop {
+  animation: ug-in 140ms steps(1) both;
+}
+.ug-accept {
+  animation: ug-accept 1.5s ease both;
+}
+
+@keyframes ug-sweep {
+  from {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(260%);
+  }
+}
+@keyframes ug-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes ug-flash {
+  0% {
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(234, 247, 220, 0.9);
+  }
+}
+@keyframes ug-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ug-accept {
+  0% {
+    opacity: 0;
+  }
+  10%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ug-stage *,
+  .ug-stage *::before,
+  .ug-stage *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ===== 裏画面: 結果演出 ===== */
+/* 結果発表のリール。3つの窓が番号を機械的に送り、確定着順で止まる（停止はJS側のタイマー） */
+.ug-reel {
+  overflow: hidden;
+  width: 62px;
+  height: 30px;
+  background: rgba(6, 11, 4, 0.85);
+  border: 1px solid rgba(200, 230, 166, 0.45);
+}
+.ug-reel[data-stopped="true"] {
+  border-color: var(--color-lcd-sel);
+}
+.ug-reel-cell {
+  height: 30px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 30px;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+/* strip は 8 セル。steps(8) で 1 セルずつ飛ばして送る（連続移動にしない） */
+.ug-reel-strip {
+  animation: ug-reel 300ms steps(8) infinite;
+}
+
+@keyframes ug-reel {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+/* 的中演出（HIT）：液晶を暗転させて払戻額を大きく出し、3.4 秒で消える */
+.ug-win {
+  animation: ug-winbg 3.4s linear both;
+}
+.ug-win-pop {
+  animation: ug-winpop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.ug-win-blink {
+  animation: ug-winblink 0.5s steps(1) infinite;
+}
+
+@keyframes ug-winbg {
+  0%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes ug-winpop {
+  0% {
+    transform: scale(0.78);
+  }
+  18% {
+    transform: scale(1.06);
+  }
+  26%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes ug-winblink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 上の一括停止（0.001ms）だと ug-winbg が終端の opacity:0 で止まり、見えないのに操作だけ塞ぐ。
+     的中演出はアニメーション無しで表示し続け、閉じるのは WinFx の 3.4 秒タイマーに任せる */
+  .ug-stage .ug-win {
+    animation: none !important;
+  }
+}
+
+/* 起動中は画面全体を覆い、液晶の発光と機械的なログ表示に集中させる。 */
+.ug-dev { position: fixed; right: 12px; bottom: 12px; z-index: 100; width: min(340px, calc(100vw - 24px)); max-height: 80dvh; overflow: auto; border: 1px solid var(--color-lcd-dim); background: var(--color-lcd-ink); color: var(--color-lcd-text); font: 12px var(--font-term); }
+.ug-dev summary { cursor: pointer; min-height: 44px; padding: 14px; }
+.ug-dev button, .ug-dev a { display: block; min-height: 44px; padding: 12px; border: 1px solid var(--color-lcd-mute); text-align: left; cursor: pointer; }
+.ug-dev button:hover, .ug-dev a:hover { background: var(--color-lcd-mute); }
+.ug-dev button:disabled { opacity: .5; cursor: wait; }
+.ug-dev :focus-visible, .ug-boot :focus-visible { outline: 2px solid var(--color-lcd-hi); outline-offset: 2px; }
+/* 開発パネルの折り畳みバーが筐体のENTERを隠さないよう専用の余白を確保する。 */
+body:has(.ug-dev) .ug-stage { height: calc(100dvh - 64px); }
+
+/* 液晶のガラス面、黒いモニター枠、塗装された操作台は独立した面。 */
+.ug-screen-bezel { flex: 1; min-height: 0; display: flex; padding: clamp(7px, 1.4vw, 14px); border: 1px solid var(--color-cab-label); border-bottom-color: var(--color-lcd-ink); background: linear-gradient(135deg, #100e0d, #292320 48%, #100e0d); box-shadow: inset 0 3px 9px #000, 0 1px 0 #544940; }
+.ug-control-deck { margin-top: clamp(12px, 2vw, 20px); padding: clamp(10px, 1.5vw, 16px); border-top: 1px solid #65584e; border-bottom: 2px solid #100d0c; background: linear-gradient(#403731, #241e1a); box-shadow: inset 0 1px 0 #75665b, 0 -4px 8px #100d0c; }
+.ug-control-deck :focus-visible { outline-color: #efe6da; }
+.ug-boot-log { position: absolute; inset: clamp(12px, 2.4vw, 20px); display: flex; flex-direction: column-reverse; overflow: hidden; cursor: pointer; font-size: 12px; line-height: 1.62; letter-spacing: .04em; text-align: left; }
+.ug-boot-log > div { white-space: pre-wrap; word-break: break-all; flex: none; }
+body:has(.ug-stage) { background: #050403; }
+@media (max-width: 480px) { .ug-control-deck { padding: 8px 4px; } .ug-fkey { min-width: 0; } }
+.ug-gate-script { font-size: 12.5px; letter-spacing: .06em; }
+.ug-gate-script > div { min-height: 1.35em; }
+.ug-gate-script > div:nth-child(3) { margin-top: 14px; }
+.ug-gate-script .ug-gate-bar { width: min(100%, 290px); min-height: 0; height: 12px; margin: 6px 0 4px; border: 1px solid rgb(200 230 166 / .35); padding: 2px; }
+.ug-gate-bar > div { height: 100%; background: var(--color-lcd-sel); animation: ug-gate-fill .62s steps(9) forwards; }
+@keyframes ug-gate-fill { from { width: 0; } to { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .ug-gate-bar > div { animation: none; width: 100%; } }
+
