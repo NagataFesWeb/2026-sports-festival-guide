@@ -171,6 +171,8 @@ interface MarketRow {
   deadline: string;
   status: MarketStatus;
   result_order: string[] | null;
+  trifecta_odds_default: number;
+  trifecta_odds_overrides: Record<string, number>;
 }
 
 interface BetRow {
@@ -309,6 +311,8 @@ const toMarket = (r: MarketRow): Market => ({
   deadline: r.deadline,
   status: r.status,
   resultOrder: r.result_order,
+  trifectaOddsDefault: r.trifecta_odds_default ?? 336,
+  trifectaOddsOverrides: r.trifecta_odds_overrides ?? {},
 });
 const fromMarket = (m: Market): MarketRow => ({
   id: m.id,
@@ -323,6 +327,8 @@ const fromMarket = (m: Market): MarketRow => ({
   deadline: m.deadline,
   status: m.status,
   result_order: m.resultOrder,
+  trifecta_odds_default: m.trifectaOddsDefault ?? 336,
+  trifecta_odds_overrides: m.trifectaOddsOverrides ?? {},
 });
 
 const toBet = (r: BetRow): Bet => ({

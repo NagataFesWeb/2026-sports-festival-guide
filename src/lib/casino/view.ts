@@ -30,6 +30,8 @@ export interface MarketView {
     status: MarketStatus;
     kinds: BetKind[];
     resultOrder: string[] | null;
+    trifectaOddsDefault: number;
+    trifectaOddsOverrides: Record<string, number>;
   };
   /** 賭式ごとのプール（selection キー → 合計）。三連単のキーは "a>b>c" */
   pools: Record<BetKind, Record<string, number>>;

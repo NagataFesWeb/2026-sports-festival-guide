@@ -50,7 +50,7 @@ export function settleMarket(input: SettleMarketInput): Result<SettleMarketOutpu
   if (!isValidOrder(market, order)) return { ok: false, error: "invalid_order" };
 
   const marketBets = bets.filter((b) => b.marketId === market.id);
-  const payoutMap = settlePayouts(marketBets, order);
+  const payoutMap = settlePayouts(marketBets, order, market);
 
   const payoutByStudent = new Map<string, number>();
   for (const b of marketBets) {

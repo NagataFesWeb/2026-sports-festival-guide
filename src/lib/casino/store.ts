@@ -8,7 +8,7 @@ import type { Event } from "../festival/types";
 import { allowedKinds, cancelBet, effectiveStatus, placeBet, type BetError, type PlaceBetInput } from "./betting";
 import { borrow, BORROW_MAX, INTEREST_RATE, repay, type DebtError } from "./debt";
 import { isValidNickname } from "./nickname";
-import { buildPool, poolTotal } from "./odds";
+import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS } from "./odds";
 import { rankAccounts } from "./settlement";
 import type { Bet, BetKind, CasinoAccountRecord, Market } from "./types";
 import type {
@@ -125,6 +125,8 @@ export async function getMarketView(marketId: string, studentId: string, now: Da
       status: effectiveStatus(market, now),
       kinds: allowedKinds(market),
       resultOrder: market.resultOrder,
+      trifectaOddsDefault: market.trifectaOddsDefault ?? DEFAULT_TRIFECTA_ODDS,
+      trifectaOddsOverrides: market.trifectaOddsOverrides ?? {},
     },
     pools: Object.fromEntries(kinds.map((k) => [k, buildPool(bets, k)])) as Record<BetKind, Record<string, number>>,
     players: players(bets),

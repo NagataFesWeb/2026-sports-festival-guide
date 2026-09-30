@@ -1,5 +1,11 @@
-// パリミュチュエル方式のオッズ・配当計算（控除率 0%）。計算式は docs/data-model.md を参照
-import type { Bet, BetKind } from "./types";
+// 単勝・複勝はプール方式、三連単は管理者が設定する固定倍率。計算式は docs/data-model.md を参照
+import type { Bet, BetKind, Market } from "./types";
+
+export const DEFAULT_TRIFECTA_ODDS = 336;
+
+export function trifectaOdds(market: Pick<Market, "trifectaOddsDefault" | "trifectaOddsOverrides">, key: string): number {
+  return market.trifectaOddsOverrides?.[key] ?? market.trifectaOddsDefault ?? DEFAULT_TRIFECTA_ODDS;
+}
 
 /** 賭式ごとのプール（selection キー → 賭け金合計） */
 export type Pool = Record<string, number>;
@@ -31,7 +37,7 @@ export const PLACE_SLOTS = 3;
 
 /**
  * 見込み倍率。対象への賭けが 0 のときは null（表示は「―」）。
- * - 単勝・三連単: 全賭け金 ÷ 対象への賭け金
+ * - 単勝: 全賭け金 ÷ 対象への賭け金
  * - 複勝: (全賭け金 ÷ 3) ÷ 対象への賭け金（3着以内の3対象でプールを等分する前提の見込み）
  */
 export function estimateOdds(pool: Pool, kind: BetKind, key: string): number | null {
@@ -105,12 +111,17 @@ function hitKeys(kind: BetKind, order: readonly string[]): string[] {
 
 /**
  * 結果確定時の配当を bet.id ごとに返す（外れは 0、端数は各ベットで切り捨て）。
- * 賭式ごとに独立したプールで精算する。
- * - 単勝・三連単: プール全額を的中ベットで按分
+ * 賭式ごとに独立したプールで精算する（ただし三連単は固定倍率）。
+ * - 単勝: プール全額を的中ベットで按分
  * - 複勝: プールを「賭けがある的中対象の数」で等分し、各対象の的中ベットで按分
+ * - 三連単: 締切時に保存されていた個別倍率、未設定なら既定倍率で払戻
  * 的中ベットが 1 件も無い賭式のプールは没収（配当 0）
  */
-export function settlePayouts(bets: readonly Bet[], order: readonly string[]): Map<string, number> {
+export function settlePayouts(
+  bets: readonly Bet[],
+  order: readonly string[],
+  trifecta?: Pick<Market, "trifectaOddsDefault" | "trifectaOddsOverrides">,
+): Map<string, number> {
   const payouts = new Map<string, number>();
   const kinds: BetKind[] = ["win", "place", "trifecta"];
   for (const kind of kinds) {
@@ -122,7 +133,10 @@ export function settlePayouts(bets: readonly Bet[], order: readonly string[]): M
     for (const b of kindBets) {
       const key = selectionKey(b.selection);
       const hit = hits.includes(key);
-      payouts.set(b.id, hit ? Math.floor((share / pool[key]) * b.amount) : 0);
+      payouts.set(
+        b.id,
+        hit ? Math.floor((kind === "trifecta" && trifecta ? trifectaOdds(trifecta, key) : share / pool[key]) * b.amount) : 0,
+      );
     }
   }
   return payouts;

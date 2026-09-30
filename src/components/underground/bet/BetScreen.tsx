@@ -95,7 +95,11 @@ export function BetScreen({ initial }: { initial: MarketView }) {
       ? [target]
       : null;
   const pool = view.pools[kind];
-  const curOdds = selection ? estimateOdds(pool, kind, selectionKey(selection)) : null;
+  const curOdds = selection
+    ? isTri
+      ? m.trifectaOddsOverrides[selectionKey(selection)] ?? m.trifectaOddsDefault
+      : estimateOdds(pool, kind, selectionKey(selection))
+    : null;
   const amount = parseStake(stakeStr);
   const stakeOk = amount !== null && amount <= balance;
 

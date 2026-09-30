@@ -5,10 +5,12 @@ import {
   createOverallMarketAction,
   reopenMarketAction,
   updateMarketDeadlineAction,
+  updateTrifectaOddsAction,
 } from "@/app/admin/actions";
 import { formatDateTime, toDateTimeLocal } from "@/lib/admin/datetime";
 import type { MarketSummaryRow } from "@/lib/admin/service";
 import { formatPoints } from "@/lib/casino/format";
+import { DEFAULT_TRIFECTA_ODDS } from "@/lib/casino/odds";
 import { ActionForm } from "./ActionForm";
 import { MARKET_STATUS_LABELS, MARKET_TYPE_LABELS } from "./labels";
 
@@ -113,6 +115,65 @@ export function MarketsTab({ rows }: { rows: MarketSummaryRow[] }) {
           </table>
         </div>
       </div>
+
+      {rows.filter(({ market }) => market.type === "event" && market.category === "race" && market.options.length >= 3).map(({ market, status }) => {
+        const editable = status === "open";
+        const defaultOdds = market.trifectaOddsDefault ?? DEFAULT_TRIFECTA_ODDS;
+        const overrides = Object.entries(market.trifectaOddsOverrides ?? {});
+        const label = (id: string) => market.options.find((option) => option.id === id)?.name ?? id;
+        return (
+          <div className="adm-card" key={`${market.id}-trifecta`}>
+            <h2 className="adm-title">{market.title}・三連単の倍率</h2>
+            <p className="adm-note">全ての着順の組み合わせに既定倍率 {defaultOdds.toFixed(2)} 倍を適用します。個別倍率はその組み合わせだけを上書きします。払戻は締切時点の倍率で確定します。</p>
+            {editable ? (
+              <div className="grid gap-4 mt-3 lg:grid-cols-2">
+                <ActionForm action={updateTrifectaOddsAction} submitLabel="既定倍率を保存">
+                  <input type="hidden" name="marketId" value={market.id} />
+                  <input type="hidden" name="mode" value="default" />
+                  <label className="adm-field">
+                    <span>全組み合わせの既定倍率</span>
+                    <input className="adm-input" type="number" name="odds" min="1" max="1000" step="0.01" defaultValue={defaultOdds} required />
+                  </label>
+                </ActionForm>
+                <ActionForm action={updateTrifectaOddsAction} submitLabel="組み合わせ倍率を保存">
+                  <input type="hidden" name="marketId" value={market.id} />
+                  <input type="hidden" name="mode" value="override" />
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {["1着", "2着", "3着"].map((rank) => (
+                      <label className="adm-field" key={rank}>
+                        <span>{rank}</span>
+                        <select className="adm-input" name="order" defaultValue="" required>
+                          <option value="">選択</option>
+                          {market.options.map((option) => <option key={option.id} value={option.id}>{option.num} {option.name}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  <label className="adm-field mt-2">
+                    <span>この組み合わせの倍率</span>
+                    <input className="adm-input" type="number" name="odds" min="1" max="1000" step="0.01" required />
+                  </label>
+                </ActionForm>
+              </div>
+            ) : <p className="adm-note mt-2">締切後のため変更できません。</p>}
+            {overrides.length > 0 && (
+              <div className="grid gap-2 mt-4">
+                <h3 className="adm-note">個別倍率（{overrides.length} 件）</h3>
+                {overrides.map(([key, odds]) => (
+                  <div className="flex flex-wrap items-center gap-3" key={key}>
+                    <span className="adm-num">{key.split(">").map(label).join(" → ")}：{odds.toFixed(2)} 倍</span>
+                    {editable && <ActionForm action={updateTrifectaOddsAction} submitLabel="既定値に戻す" tone="ghost" inline>
+                      <input type="hidden" name="marketId" value={market.id} />
+                      <input type="hidden" name="mode" value="reset" />
+                      {key.split(">").map((id, index) => <input type="hidden" name="order" value={id} key={index} />)}
+                    </ActionForm>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="adm-card">

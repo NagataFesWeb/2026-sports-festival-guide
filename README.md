@@ -106,7 +106,7 @@ npm run entries # 出場競技表の CSV から静的データを生成（dev・
 
 1. Supabase でプロジェクトを作り、SQL Editor で `supabase/schema.sql` を実行する（列を足したときも同じファイルを再実行すればよい。`alter table ... add column if not exists` で既存データは保たれる）
 2. Authentication でメール＋パスワードのユーザーを作る（実行委員のログインに使う）
-3. `.env.example` を参考に、Vercel の環境変数に `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY` / `SESSION_SECRET`（16文字以上のランダム文字列）を設定する。`SUPABASE_SECRET_KEY` はサーバー専用で、ブラウザには渡さない
+3. `.env.example` を参考に、Vercel の環境変数に `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY` / `SESSION_SECRET`（16文字以上のランダム文字列）/ `ADMIN_EMAIL`（許可する管理者のメールアドレス）を設定する。`SUPABASE_SECRET_KEY` はサーバー専用で、ブラウザには渡さない
 4. デプロイ後、`/admin` からチーム・種目を登録し、「CSV取り込み」で生徒名簿と招集案内を入れる
 
 本番ビルド（`NODE_ENV=production`）で Supabase の環境変数が無いと、起動時に例外で止まる（メモリ実装はサーバーレスでは再起動のたびに消えるため）。ローカルで本番ビルドをメモリ実装のまま試すときだけ `ALLOW_MEMORY_DB=1` を付ける。

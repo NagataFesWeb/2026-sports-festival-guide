@@ -115,6 +115,17 @@ describe("結果確定時の配当", () => {
     expect(p.get(swapped.id)).toBe(0);
   });
 
+  it("三連単：賭け金プールではなく締切時の個別倍率、未設定なら既定倍率で払い戻す", () => {
+    const hit = bet("trifecta", ["t1", "t2", "t3"], 101);
+    const swapped = bet("trifecta", ["t2", "t1", "t3"], 500);
+    const market = { trifectaOddsDefault: 336, trifectaOddsOverrides: { "t1>t2>t3": 12.34 } };
+    const custom = settlePayouts([hit, swapped], ["t1", "t2", "t3"], market);
+    expect(custom.get(hit.id)).toBe(1246);
+    expect(custom.get(swapped.id)).toBe(0);
+    const fallback = settlePayouts([hit], ["t1", "t2", "t3"], { trifectaOddsDefault: 336 });
+    expect(fallback.get(hit.id)).toBe(33936);
+  });
+
   it("賭式ごとに独立したプールで精算する", () => {
     const w = bet("win", ["t1"], 100);
     const wl = bet("win", ["t2"], 100);

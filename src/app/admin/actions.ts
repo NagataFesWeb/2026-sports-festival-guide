@@ -29,6 +29,7 @@ import {
   shiftSchedule,
   unpublishScores,
   updateMarketDeadline,
+  updateTrifectaOdds,
   type AdminResult,
   type EventResultInput,
   type SettleSummary,
@@ -267,6 +268,21 @@ export async function updateMarketDeadlineAction(_prev: ActionState | null, form
   await requireAdmin();
   const result = await updateMarketDeadline(getRepository(), text(formData, "marketId"), text(formData, "deadline"));
   return toState(result, (m) => `締切を ${formatDateTime(m.deadline)} に変更しました`);
+}
+
+export async function updateTrifectaOddsAction(_prev: ActionState | null, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const rawMode = text(formData, "mode");
+  if (rawMode !== "default" && rawMode !== "override" && rawMode !== "reset") {
+    return { ok: false, message: "操作を選んでください" };
+  }
+  const rawOdds = text(formData, "odds");
+  const result = await updateTrifectaOdds(getRepository(), text(formData, "marketId"), {
+    mode: rawMode,
+    order: textList(formData, "order"),
+    odds: rawMode === "reset" || rawOdds === "" ? undefined : Number(rawOdds),
+  });
+  return toState(result, () => rawMode === "reset" ? "個別倍率を既定値に戻しました" : "三連単の倍率を保存しました");
 }
 
 export async function closeMarketAction(_prev: ActionState | null, formData: FormData): Promise<ActionState> {

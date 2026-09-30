@@ -2,7 +2,7 @@
 // ポイント・オッズ・利子の計算は src/lib/casino/*、順位点は src/lib/festival/* の純粋関数に委譲する
 import { effectiveStatus } from "@/lib/casino/betting";
 import { finalizeAccount } from "@/lib/casino/debt";
-import { buildPool, poolTotal } from "@/lib/casino/odds";
+import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS, selectionKey } from "@/lib/casino/odds";
 import { settleMarket } from "@/lib/casino/settle";
 import type { CasinoAccountRecord, Market, MarketOption, MarketStatus } from "@/lib/casino/types";
 import { getRepository, type Repository } from "@/lib/db";
@@ -306,6 +306,9 @@ export async function createEventMarket(
     deadline,
     status: "open",
     resultOrder: null,
+    ...(event.category === "race" && teams.length >= 3
+      ? { trifectaOddsDefault: DEFAULT_TRIFECTA_ODDS, trifectaOddsOverrides: {} }
+      : {}),
   };
   await repo.upsertMarket(market);
   return ok(market);
@@ -390,6 +393,47 @@ export async function updateMarketDeadline(
   if (market.status === "settled") return fail("確定済みの Market は変更できません");
 
   const next: Market = { ...market, deadline };
+  await repo.upsertMarket(next);
+  return ok(next);
+}
+
+/** 三連単の倍率は締切まで編集可能。全組み合わせには既定倍率が適用される。 */
+export async function updateTrifectaOdds(
+  repo: Repository,
+  marketId: string,
+  input: { mode: "default" | "override" | "reset"; order?: string[]; odds?: number },
+  now = new Date(),
+): Promise<AdminResult<Market>> {
+  const market = await repo.getMarket(marketId);
+  if (!market) return fail("Market が見つかりません");
+  if (market.type !== "event" || market.category !== "race" || market.options.length < 3) {
+    return fail("三連単のある競技だけ倍率を変更できます");
+  }
+  const event = market.eventId ? await repo.getEvent(market.eventId) : null;
+  const deadline = effectiveDeadline(market, event);
+  if (effectiveStatus({ ...market, deadline }, now) !== "open") return fail("締切後の倍率は変更できません");
+
+  if (input.mode !== "reset") {
+    const odds = input.odds;
+    if (odds === undefined || !Number.isFinite(odds) || odds < 1 || odds > 1000 || Math.abs(Math.round(odds * 100) - odds * 100) > 1e-7) {
+      return fail("倍率は 1.00〜1000.00 の範囲で小数2桁まで入力してください");
+    }
+  }
+  let next: Market;
+  if (input.mode === "default") {
+    next = { ...market, trifectaOddsDefault: input.odds };
+  } else {
+    const order = input.order ?? [];
+    const ids = new Set(market.options.map((o) => o.id));
+    if (order.length !== 3 || new Set(order).size !== 3 || !order.every((id) => ids.has(id))) {
+      return fail("異なる3チームを1〜3着に選んでください");
+    }
+    const overrides = { ...market.trifectaOddsOverrides };
+    const key = selectionKey(order);
+    if (input.mode === "reset") delete overrides[key];
+    else overrides[key] = input.odds!;
+    next = { ...market, trifectaOddsOverrides: overrides };
+  }
   await repo.upsertMarket(next);
   return ok(next);
 }
@@ -746,6 +790,8 @@ export function adminService() {
     createOverallMarket: (deadlineIso: string) => createOverallMarket(repo, deadlineIso),
     createCustomMarket: (input: CustomMarketInput) => createCustomMarket(repo, input),
     updateMarketDeadline: (marketId: string, deadlineIso: string) => updateMarketDeadline(repo, marketId, deadlineIso),
+    updateTrifectaOdds: (marketId: string, input: { mode: "default" | "override" | "reset"; order?: string[]; odds?: number }) =>
+      updateTrifectaOdds(repo, marketId, input),
     closeMarketNow: (marketId: string) => closeMarketNow(repo, marketId),
     reopenMarket: (marketId: string) => reopenMarket(repo, marketId),
     marketSummaries: (now: Date) => marketSummaries(repo, now),

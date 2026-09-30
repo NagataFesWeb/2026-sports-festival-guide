@@ -86,6 +86,7 @@ describe("Supabase Auth", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", url);
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", anonKey);
+    vi.stubEnv("ADMIN_EMAIL", "iinkai@nagata.example.jp");
   });
 
   it("200 が返れば true。URL・ヘッダー・本文が仕様どおり", async () => {
@@ -111,7 +112,7 @@ describe("Supabase Auth", () => {
     expect(await verifyAdminCredentials("iinkai@nagata.example.jp", "himitsu")).toBe(false);
   });
 
-  it("Supabase 設定時は環境変数の既定アカウントを参照しない", async () => {
+  it("Supabase 設定時は環境変数のパスワードを参照しない", async () => {
     vi.stubEnv("ADMIN_EMAIL", "admin@example.com");
     vi.stubEnv("ADMIN_PASSWORD", "admin");
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 400 }));
@@ -126,7 +127,16 @@ describe("Supabase Auth", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await verifyAdminCredentials("a@b.co", "pw");
+    await verifyAdminCredentials("iinkai@nagata.example.jp", "pw");
     expect(fetchMock.mock.calls[0][0]).toBe(`${url}/auth/v1/token?grant_type=password`);
+  });
+
+  it("許可されていないアドレスと ADMIN_EMAIL 未設定では Auth が成功しても拒否する", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await verifyAdminCredentials("someone@example.jp", "pw")).toBe(false);
+    vi.stubEnv("ADMIN_EMAIL", undefined);
+    expect(await verifyAdminCredentials("iinkai@nagata.example.jp", "pw")).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

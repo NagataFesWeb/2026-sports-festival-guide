@@ -41,6 +41,10 @@ export interface Market {
   status: MarketStatus;
   /** 確定着順（先頭が勝者）。settled のときのみ */
   resultOrder: string[] | null;
+  /** 三連単の全着順に適用する既定倍率。既存データは 336 倍として扱う */
+  trifectaOddsDefault?: number;
+  /** "1着>2着>3着" ごとの上書き倍率 */
+  trifectaOddsOverrides?: Record<string, number>;
 }
 
 export interface Bet {

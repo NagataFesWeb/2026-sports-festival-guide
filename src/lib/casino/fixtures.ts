@@ -630,7 +630,7 @@ export function createFixtureState(now: Date): CasinoState {
   for (const m of state.markets) {
     if (m.status !== "settled" || !m.resultOrder) continue;
     const marketBets = state.bets.filter((b) => b.marketId === m.id);
-    const payouts = settlePayouts(marketBets, m.resultOrder);
+    const payouts = settlePayouts(marketBets, m.resultOrder, m);
     for (const b of marketBets) b.payoutAmount = payouts.get(b.id) ?? 0;
   }
 

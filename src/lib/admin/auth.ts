@@ -1,5 +1,5 @@
 // 実行委員（管理者）ログインの認証。生徒（カジノ）の認証とは別系統
-// 優先順位: Supabase Auth → 環境変数（ADMIN_EMAIL / ADMIN_PASSWORD）→ 開発時のみ既定値
+// 優先順位: ADMIN_EMAIL で許可した Supabase Auth ユーザー → 環境変数 → 開発時のみ既定値
 import { timingSafeEqual } from "node:crypto";
 
 /** 環境変数が何も無いときに開発だけで使う既定アカウント */
@@ -53,9 +53,13 @@ export async function verifyAdminCredentials(email: string, password: string): P
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (url && anonKey) return verifyWithSupabase(url, anonKey, inputEmail, password);
-
   const envEmail = process.env.ADMIN_EMAIL;
+  if (url && anonKey) {
+    // Supabase のサインアップ設定に関わらず、管理者として許可したアドレスだけを通す
+    if (!envEmail || !safeEquals(inputEmail, envEmail.trim().toLowerCase())) return false;
+    return verifyWithSupabase(url, anonKey, inputEmail, password);
+  }
+
   const envPassword = process.env.ADMIN_PASSWORD;
   if (envEmail && envPassword) {
     return safeEquals(inputEmail, envEmail.trim().toLowerCase()) && safeEquals(password, envPassword);

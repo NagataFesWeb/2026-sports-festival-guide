@@ -97,8 +97,14 @@ create table if not exists public.markets (
   options      jsonb not null default '[]'::jsonb,  -- MarketOption[]（{id, num, name}）
   deadline     timestamptz not null,
   status       text not null check (status in ('open', 'closed', 'settled')),
-  result_order jsonb                                -- string[]。settled のときのみ
+  result_order jsonb,                               -- string[]。settled のときのみ
+  trifecta_odds_default numeric(8,2) not null default 336.00 check (trifecta_odds_default between 1 and 1000),
+  trifecta_odds_overrides jsonb not null default '{}'::jsonb
 );
+
+-- 既存プロジェクトにも再実行で追加する
+alter table public.markets add column if not exists trifecta_odds_default numeric(8,2) not null default 336.00;
+alter table public.markets add column if not exists trifecta_odds_overrides jsonb not null default '{}'::jsonb;
 
 -- ベット（1 人が同じ Market に複数回賭けられる）
 create table if not exists public.bets (
