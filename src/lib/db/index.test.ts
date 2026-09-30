@@ -2,12 +2,13 @@
 import { describe, expect, it } from "vitest";
 import { selectDriver } from "./index";
 
-const supabase = { NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "key" };
+const supabase = { NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_key" };
 
 describe("selectDriver", () => {
-  it("Supabase の URL と service role key が揃っていれば supabase", () => {
+  it("Supabase の URL と secret key が揃っていれば supabase", () => {
     expect(selectDriver({ ...supabase, NODE_ENV: "production" })).toBe("supabase");
     expect(selectDriver({ ...supabase, NODE_ENV: "development" })).toBe("supabase");
+    expect(selectDriver({ NEXT_PUBLIC_SUPABASE_URL: supabase.NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: "legacy", NODE_ENV: "production" })).toBe("supabase");
   });
 
   it("開発・テストでは未設定なら memory", () => {

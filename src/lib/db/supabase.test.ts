@@ -5,7 +5,7 @@ import type { Event, EventResult, Team } from "../festival/types";
 import { SupabaseRepository } from "./supabase";
 
 const BASE = "https://example.supabase.co";
-const KEY = "service-role-key";
+const KEY = "sb_secret_test-key";
 
 const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>();
 let repo: SupabaseRepository;
@@ -28,7 +28,8 @@ function json(value: unknown, status = 200): Response {
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = BASE;
-  process.env.SUPABASE_SERVICE_ROLE_KEY = KEY;
+  process.env.SUPABASE_SECRET_KEY = KEY;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   repo = new SupabaseRepository();
@@ -48,7 +49,7 @@ describe("認証ヘッダ", () => {
     expect(req.url).toBe(`${BASE}/rest/v1/students?select=*&order=student_id`);
     expect(req.method).toBe("GET");
     expect(req.headers.apikey).toBe(KEY);
-    expect(req.headers.Authorization).toBe(`Bearer ${KEY}`);
+    expect(req.headers.Authorization).toBeUndefined();
     expect(req.headers.Range).toBe("0-999");
   });
 
@@ -66,8 +67,16 @@ describe("認証ヘッダ", () => {
   });
 
   it("環境変数が無ければ例外", async () => {
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_SECRET_KEY;
     await expect(repo.listStudents()).rejects.toThrow(/環境変数/);
+  });
+
+  it("旧 service_role JWT も移行期間中は利用できる", async () => {
+    delete process.env.SUPABASE_SECRET_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "legacy-jwt";
+    fetchMock.mockResolvedValue(json([]));
+    await repo.listStudents();
+    expect(call(0).headers.Authorization).toBe("Bearer legacy-jwt");
   });
 
   it("2xx 以外はステータスと本文を含む例外", async () => {

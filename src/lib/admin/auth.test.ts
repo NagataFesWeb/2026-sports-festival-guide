@@ -6,6 +6,7 @@ import { verifyAdminCredentials } from "./auth";
 function clearAuthEnv(): void {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", undefined);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", undefined);
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", undefined);
   vi.stubEnv("ADMIN_EMAIL", undefined);
   vi.stubEnv("ADMIN_PASSWORD", undefined);
 }
@@ -84,7 +85,7 @@ describe("Supabase Auth", () => {
 
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", url);
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", anonKey);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", anonKey);
   });
 
   it("200 が返れば true。URL・ヘッダー・本文が仕様どおり", async () => {

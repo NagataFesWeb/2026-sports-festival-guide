@@ -28,8 +28,8 @@ const FILTER_CHUNK = 200;
 function credentials(): { url: string; key: string } {
   // 環境変数はモジュール読み込み時ではなく呼び出しごとに読む（テスト・遅延設定に対応するため）
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase の環境変数（NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY）が未設定です");
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase の環境変数（NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY）が未設定です");
   return { url: url.replace(/\/+$/, ""), key };
 }
 
@@ -43,7 +43,9 @@ interface SendOptions {
 
 async function send(pathAndQuery: string, options: SendOptions): Promise<Response> {
   const { url, key } = credentials();
-  const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}` };
+  const headers: Record<string, string> = { apikey: key };
+  // 新しい sb_secret_ キーは JWT ではないため Authorization に入れない
+  if (!key.startsWith("sb_secret_")) headers.Authorization = `Bearer ${key}`;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.prefer) headers["Prefer"] = options.prefer;
   if (options.range) headers.Range = options.range;
@@ -525,7 +527,7 @@ export class SupabaseRepository implements Repository {
       method: "POST",
       headers: {
         apikey: key,
-        Authorization: `Bearer ${key}`,
+        ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       },

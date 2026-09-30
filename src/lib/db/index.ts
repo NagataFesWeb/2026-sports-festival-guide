@@ -10,6 +10,7 @@ export type DbDriver = "supabase" | "memory";
 /** 選択に使う環境変数（テストで差し替えられるよう process.env から切り離す） */
 export interface DriverEnv {
   NEXT_PUBLIC_SUPABASE_URL?: string;
+  SUPABASE_SECRET_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   NODE_ENV?: string;
   /** next build のときは "phase-production-build"（ビルド中は DB に触らないので許可する） */
@@ -25,11 +26,11 @@ export interface DriverEnv {
  * 生徒のポイントやベットが失われる（仕様書 未決定事項「Vercel でのメモリ実装」）。
  */
 export function selectDriver(env: DriverEnv): DbDriver {
-  if (env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) return "supabase";
+  if (env.NEXT_PUBLIC_SUPABASE_URL && (env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) return "supabase";
   const isProduction = env.NODE_ENV === "production" && env.NEXT_PHASE !== "phase-production-build";
   if (isProduction && env.ALLOW_MEMORY_DB !== "1") {
     throw new Error(
-      "Supabase が未設定です。本番では NEXT_PUBLIC_SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY を環境変数に設定してください（メモリ実装で動かす場合は ALLOW_MEMORY_DB=1）",
+      "Supabase が未設定です。本番では NEXT_PUBLIC_SUPABASE_URL と SUPABASE_SECRET_KEY を環境変数に設定してください（メモリ実装で動かす場合は ALLOW_MEMORY_DB=1）",
     );
   }
   return "memory";
