@@ -64,6 +64,23 @@ function account(over: Partial<CasinoAccountRecord> = {}): CasinoAccountRecord {
 }
 
 describe("結果確定", () => {
+  it("三連単は Market の個別倍率で口座残高まで精算する", () => {
+    const selection = ["t1", "t2", "t3"];
+    const winner = bet({ id: "tri-hit", kind: "trifecta", selection, amount: 100 });
+    const loser = bet({ id: "tri-miss", kind: "trifecta", selection: ["t2", "t1", "t3"], amount: 500 });
+    const r = settleMarket({
+      market: raceMarket({ trifectaOddsDefault: 336, trifectaOddsOverrides: { "t1>t2>t3": 12.34 } }),
+      bets: [winner, loser],
+      accounts: [account()],
+      order: selection,
+      now: NOW,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.payouts).toEqual([{ id: "tri-hit", payoutAmount: 1234 }, { id: "tri-miss", payoutAmount: 0 }]);
+    expect(r.value.accounts[0]?.pointsBalance).toBe(2234);
+  });
+
   it("的中者は配当を受け取り、ベットしていない借金持ちにも利子が付く", () => {
     const betA = bet({ id: "bA", studentId: "A", selection: ["t1"], amount: 100 });
     const betB = bet({ id: "bB", studentId: "B", selection: ["t2"], amount: 100 });
