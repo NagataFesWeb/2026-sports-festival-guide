@@ -24,10 +24,10 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // 実行委員: /admin/login 以外はログインセッション必須
+  // 実行委員: ログインと招待リンクからのパスワード設定以外はセッション必須
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    const isLogin = pathname === "/admin/login";
-    if (!isLogin && !sessionOf(request, "admin")) {
+    const isPublicAuthPage = pathname === "/admin/login" || pathname === "/admin/setup";
+    if (!isPublicAuthPage && !sessionOf(request, "admin")) {
       if (pathname.startsWith("/api/")) {
         return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
       }

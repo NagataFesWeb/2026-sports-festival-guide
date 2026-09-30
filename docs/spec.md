@@ -208,7 +208,7 @@
 | カジノ入場認証（パスワードハッシュ・署名付きトークン） | `src/lib/auth/auth.test.ts`、口座作成・照合は `store.test.ts` | 自動 |
 | ニックネームの要件・順位表示名 | `src/lib/casino/nickname.test.ts`、登録時の拒否は `store.test.ts`、表示名の決め方は `settlement.test.ts` | 自動 |
 | 本番で Supabase 未設定のまま動かさない | `src/lib/db/index.test.ts`（`selectDriver` が本番で例外） | 自動 |
-| 実行委員ログイン（Supabase Auth／環境変数の代替） | `src/lib/admin/auth.test.ts` | 自動 |
+| 実行委員ログイン・招待リンク（Supabase Auth／環境変数の代替） | `src/lib/admin/auth.test.ts`、`src/lib/admin/setup-link.test.ts`、`src/proxy.test.ts` | 自動 |
 | 得点板の集計・順位（ヒート合算） | `src/lib/festival/standings.test.ts` | 自動 |
 | 進行の遅延・前倒し／プログラム状態（終了・進行中・次・予定）／締切のずれ | `src/lib/festival/schedule.test.ts` | 自動 |
 | ヒート単位の結果確定・得点直接入力・得点公開 | `src/lib/admin/service.test.ts` | 自動 |
