@@ -105,7 +105,7 @@ npm run entries # 出場競技表の CSV から静的データを生成（dev・
 サイト全体に `noindex, nofollow` を設定し、`robots.txt` でも全パスの巡回を拒否している。URL を知っている人は閲覧できるため、非公開データの保護には認証を使う。
 
 1. Supabase でプロジェクトを作り、SQL Editor で `supabase/schema.sql` を実行する（列を足したときも同じファイルを再実行すればよい。`alter table ... add column if not exists` で既存データは保たれる）
-2. Authentication でメール＋パスワードのユーザーを作る（実行委員のログインに使う）
+2. Supabase Authentication の Site URL を本番 URL の `/admin/setup` に設定し、実行委員のメールアドレスを招待する。招待メールのリンクから本人が12文字以上のパスワードを設定する
 3. `.env.example` を参考に、Vercel の環境変数に `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY` / `SESSION_SECRET`（16文字以上のランダム文字列）/ `ADMIN_EMAIL`（許可する管理者のメールアドレス）を設定する。`SUPABASE_SECRET_KEY` はサーバー専用で、ブラウザには渡さない
 4. デプロイ後、`/admin` からチーム・種目を登録し、「CSV取り込み」で生徒名簿と招集案内を入れる
 
