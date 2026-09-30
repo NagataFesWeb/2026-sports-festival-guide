@@ -13,7 +13,7 @@ const WATERMARK = "NAGATA ".repeat(9).trim();
 /** 「滅！」の巨大文字。字面は同じで色だけ変える（グリッチの二重像に使う） */
 const MEI_CLASS = "font-om-mincho text-[min(58vw,30vh)] leading-[0.78] font-extrabold tracking-[-0.02em]";
 
-export function Hero() {
+export function Hero({ dateLabel, openLabel }: { dateLabel: string; openLabel: string }) {
   const watermarkRef = useRef<HTMLDivElement | null>(null);
   const marqueeRef = useRef<HTMLDivElement | null>(null);
   /** クリックで「滅！」の登場アニメーションをやり直すためのキー */
@@ -93,9 +93,9 @@ export function Hero() {
             <span className="text-om-yellow">79TH SPORTS FESTIVAL</span>
           </div>
           <div className="text-right font-display text-[clamp(10px,1.4vw,13px)] leading-[2] tracking-[0.22em] text-[rgba(245,242,233,.6)]">
-            2026. 09. 26 SAT
+            {dateLabel}
             <br />
-            8:45 OPEN
+            {openLabel}
           </div>
         </div>
 

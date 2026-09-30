@@ -51,7 +51,8 @@ export interface Repository {
   listBets(filter?: BetFilter): Promise<Bet[]>;
   getBet(betId: string): Promise<Bet | null>;
   insertBet(bet: Bet): Promise<void>;
-  deleteBet(betId: string): Promise<void>;
+  /** 実際に削除できた場合だけ true。取消の二重返金を防ぐ */
+  deleteBet(betId: string): Promise<boolean>;
   /** 結果確定時に配当をまとめて記録する */
   updateBetPayouts(payouts: readonly { id: string; payoutAmount: number }[]): Promise<void>;
 

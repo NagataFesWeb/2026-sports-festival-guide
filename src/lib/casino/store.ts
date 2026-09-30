@@ -218,7 +218,7 @@ export async function withdrawBet(betId: string, studentId: string, now: Date): 
   // 同じベットを何度も取り消して払戻を重複させられる（ポイントを不正に増やせる）。
   // 削除を先にすれば最悪でも「返金されないままベットが消える」方向にしか壊れず、
   // 返金できなかった場合はベットを入れ直して元に戻す
-  await repository.deleteBet(betId);
+  if (!(await repository.deleteBet(betId))) return { ok: false, error: "bet_not_found" };
   const refunded = await casUpdate<null, BetError>(studentId, (a) => {
     const canceled = cancelBet(a, market, bet, now);
     if (!canceled.ok) return { ok: false, error: canceled.error };

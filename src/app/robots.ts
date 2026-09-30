@@ -1,8 +1,8 @@
-// robots.txt。カジノ・管理画面・API は検索エンジンに載せない（隠し入口の趣旨を守る）
+// robots.txt。公開 URL は直接共有できるが、検索エンジンの巡回は許可しない
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/casino", "/api", "/admin"] }],
+    rules: [{ userAgent: "*", disallow: "/" }],
   };
 }

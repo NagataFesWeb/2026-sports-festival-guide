@@ -18,6 +18,8 @@ import type { Balances, BetFilter, Repository } from "./repository";
 
 /** 1 リクエストに載せる最大行数（URL 長・ペイロード対策） */
 const INSERT_CHUNK = 500;
+/** Supabase Data API の既定の取得上限に合わせ、全件取得はページ単位で行う */
+const SELECT_PAGE_SIZE = 1000;
 /** id=in.(...) に並べる最大件数（URL が長くなりすぎると 414 になる） */
 const FILTER_CHUNK = 200;
 
@@ -36,6 +38,7 @@ interface SendOptions {
   /** Prefer ヘッダ（resolution=merge-duplicates / return=representation など） */
   prefer?: string;
   body?: unknown;
+  range?: string;
 }
 
 async function send(pathAndQuery: string, options: SendOptions): Promise<Response> {
@@ -43,6 +46,7 @@ async function send(pathAndQuery: string, options: SendOptions): Promise<Respons
   const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}` };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.prefer) headers["Prefer"] = options.prefer;
+  if (options.range) headers.Range = options.range;
 
   const res = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
     method: options.method,
@@ -56,8 +60,16 @@ async function send(pathAndQuery: string, options: SendOptions): Promise<Respons
 
 /** GET して行の配列を受け取る */
 async function selectRows<R>(pathAndQuery: string): Promise<R[]> {
-  const res = await send(pathAndQuery, { method: "GET" });
-  return (await res.json()) as R[];
+  const rows: R[] = [];
+  for (let start = 0; ; start += SELECT_PAGE_SIZE) {
+    const res = await send(pathAndQuery, {
+      method: "GET",
+      range: `${start}-${start + SELECT_PAGE_SIZE - 1}`,
+    });
+    const page = (await res.json()) as R[];
+    rows.push(...page);
+    if (page.length < SELECT_PAGE_SIZE) return rows;
+  }
 }
 
 /** 主キー衝突時は既存行にマージする upsert */
@@ -472,8 +484,10 @@ export class SupabaseRepository implements Repository {
     await send("bets", { method: "POST", prefer: "return=minimal", body: [fromBet(bet)] });
   }
 
-  async deleteBet(betId: string): Promise<void> {
-    await send(`bets?${eq("id", betId)}`, { method: "DELETE", prefer: "return=minimal" });
+  async deleteBet(betId: string): Promise<boolean> {
+    const res = await send(`bets?${eq("id", betId)}`, { method: "DELETE", prefer: "return=representation" });
+    const rows = (await res.json()) as { id: string }[];
+    return rows.length === 1;
   }
 
   /**

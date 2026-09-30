@@ -49,6 +49,20 @@ describe("認証ヘッダ", () => {
     expect(req.method).toBe("GET");
     expect(req.headers.apikey).toBe(KEY);
     expect(req.headers.Authorization).toBe(`Bearer ${KEY}`);
+    expect(req.headers.Range).toBe("0-999");
+  });
+
+  it("1000 件を超えるベットも全ページ取得する", async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, i) => ({
+      id: `bet-${i}`, market_id: "market-1", student_id: "2117", kind: "win", selection: ["t1"],
+      amount: 1, payout_amount: null, created_at: "2026-09-26T00:00:00.000Z",
+    }));
+    fetchMock.mockResolvedValueOnce(json(firstPage)).mockResolvedValueOnce(json([{ ...firstPage[0], id: "bet-1000" }]));
+
+    const bets = await repo.listBets({ marketId: "market-1" });
+    expect(bets).toHaveLength(1001);
+    expect(call(0).headers.Range).toBe("0-999");
+    expect(call(1).headers.Range).toBe("1000-1999");
   });
 
   it("環境変数が無ければ例外", async () => {
@@ -230,6 +244,15 @@ describe("updateBalances", () => {
   it("更新行が無ければ false（同時更新の検出）", async () => {
     fetchMock.mockResolvedValue(json([]));
     expect(await repo.updateBalances("2117", expected, next)).toBe(false);
+  });
+});
+
+describe("deleteBet", () => {
+  it("削除行がある場合だけ true を返す", async () => {
+    fetchMock.mockResolvedValueOnce(json([{ id: "bet-1" }])).mockResolvedValueOnce(json([]));
+    expect(await repo.deleteBet("bet-1")).toBe(true);
+    expect(await repo.deleteBet("bet-1")).toBe(false);
+    expect(call(0).headers.Prefer).toBe("return=representation");
   });
 });
 

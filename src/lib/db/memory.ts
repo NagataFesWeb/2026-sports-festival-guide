@@ -305,10 +305,13 @@ export class MemoryRepository implements Repository {
     saveState(s);
   }
 
-  async deleteBet(betId: string): Promise<void> {
+  async deleteBet(betId: string): Promise<boolean> {
     const s = state();
+    const before = s.bets.length;
     s.bets = s.bets.filter((b) => b.id !== betId);
+    if (s.bets.length === before) return false;
     saveState(s);
+    return true;
   }
 
   async updateBetPayouts(payouts: readonly { id: string; payoutAmount: number }[]): Promise<void> {

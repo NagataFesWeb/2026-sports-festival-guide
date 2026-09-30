@@ -28,6 +28,7 @@ const notoSansJp = Noto_Sans_JP({
 export const metadata: Metadata = {
   title: "長田すぎて滅！青春爆裂愛してる",
   description: "長田高校 第79回 体育祭",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

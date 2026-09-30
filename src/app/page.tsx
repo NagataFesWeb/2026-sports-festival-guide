@@ -3,7 +3,7 @@
 import { connection } from "next/server";
 import { DeveloperPanel } from "@/components/underground/DeveloperPanel";
 import { AutoRefresh } from "@/components/festival/AutoRefresh";
-import { formatHourMinute } from "@/components/festival/format";
+import { formatFestivalDate, formatHourMinute } from "@/components/festival/format";
 import { Hero } from "@/components/festival/Hero";
 import { IdSearchForm } from "@/components/festival/IdSearchForm";
 import { LoadingOverlay } from "@/components/festival/LoadingOverlay";
@@ -43,12 +43,13 @@ export default async function Home() {
   }
   const first = events.length > 0 ? times[events[0].id] : null;
   const last = events.length > 0 ? times[events[events.length - 1].id] : null;
+  const firstStart = events.find((event) => starts[event.id])?.startTime ?? null;
 
   return (
     <div className="om-page">
       {process.env.NODE_ENV === "development" && <DeveloperPanel />}
       <LoadingOverlay />
-      <Hero />
+      <Hero dateLabel={formatFestivalDate(firstStart) ?? "DATE TBA"} openLabel={first ? `${first} OPEN` : "TIME TBA"} />
 
       {/* ---- ABOUT ---- */}
       <section className="bg-om-paper px-[clamp(18px,5vw,60px)] py-[clamp(46px,8vw,96px)]">

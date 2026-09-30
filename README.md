@@ -102,6 +102,8 @@ npm run entries # 出場競技表の CSV から静的データを生成（dev・
 
 ### 本番（Supabase + Vercel）
 
+サイト全体に `noindex, nofollow` を設定し、`robots.txt` でも全パスの巡回を拒否している。URL を知っている人は閲覧できるため、非公開データの保護には認証を使う。
+
 1. Supabase でプロジェクトを作り、SQL Editor で `supabase/schema.sql` を実行する（列を足したときも同じファイルを再実行すればよい。`alter table ... add column if not exists` で既存データは保たれる）
 2. Authentication でメール＋パスワードのユーザーを作る（実行委員のログインに使う）
 3. `.env.example` を参考に、Vercel の環境変数に `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `SESSION_SECRET`（16文字以上のランダム文字列）を設定する
