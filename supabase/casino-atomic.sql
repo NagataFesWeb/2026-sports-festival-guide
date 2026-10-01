@@ -173,7 +173,9 @@ begin
     row_bet := jsonb_populate_record(null::public.bets, item);
     update public.bets set payout_amount = row_bet.payout_amount where id = row_bet.id;
   end loop;
-  update public.markets set status = undo_snapshot->'market'->>'status',
+  update public.markets set status = case when clock_timestamp() < current_market.deadline
+      + make_interval(mins => case when current_market.type = 'event' then coalesce((select delay_min from public.events where id = current_market.event_id), 0) else 0 end)
+      then 'open' else 'closed' end,
     result_order = case when undo_snapshot->'market'->>'result_order' is null then null else undo_snapshot->'market'->'result_order' end
     where id = target_id;
   -- 元が未確定の場合、SQL NULLを保持する。

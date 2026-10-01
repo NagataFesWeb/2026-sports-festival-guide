@@ -293,7 +293,7 @@ export async function resetConfirmedMarketAction(_prev: ActionState | null, form
   await requireAdmin();
   if (!checked(formData, "confirm")) return NEED_CONFIRM;
   return toState(await resetConfirmedMarket(getRepository(), text(formData, "marketId")),
-    () => "この競技の確定・配当・利子を確定前に戻しました。再入力できます。締切時刻は保持しています。", ["/", "/me", "/casino", "/ranking"]);
+    () => "この競技の確定・配当・利子を確定前に戻しました。締切時刻より前なら受付を再開しています。", ["/", "/me", "/casino", "/ranking"]);
 }
 
 // ---- CSV 取り込み ----

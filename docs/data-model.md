@@ -247,3 +247,7 @@ Supabaseは `supabase/casino-atomic.sql` のサーバー専用RPCを使う。残
 ### 結果確定の取り消し記録
 
 casino_settlement_undo（market_id主キー、snapshot jsonb、created_at）はservice_roleだけが読み書きする。確定前後のMarket・対象口座の金融項目・ベット・競技結果を同じ保存RPCで記録する。パスワード・ニックネーム・登録時刻は記録しない。reset_market_settlement RPCはテーブルをロックし、確定後と現在の状態が一致する場合だけ記録から復元して記録を削除する。最終精算後は拒否。総合順位の取り消しではscores_published_atもNULLにする。
+
+### 演出常時有効・リセット時の受付再開（2026-10-02）
+
+演出はOS・旧保存設定にかかわらず常に有効。切り替えボタンは表示しない。選んだ競技をリセットすると、締切時刻（種目の遅延・前倒しを反映）より前ならopenへ戻す。締切時刻以降はclosedにする。締切の設定値・賭け金は変えない。メモリと実Supabaseで時刻内・時刻外・遅延の3条件を確認済み。

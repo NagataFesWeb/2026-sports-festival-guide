@@ -8,17 +8,17 @@ describe("サイト内の演出設定", () => {
     vi.stubGlobal("localStorage", { getItem: () => saved });
     vi.stubGlobal("window", { matchMedia: () => ({ matches: reduced }) });
   }
-  it("未設定ならOSの設定を使う", () => {
-    setup(null, true); expect(isMotionReduced()).toBe(true);
+  it("OS設定にかかわらず演出を有効にする", () => {
+    setup(null, true); expect(isMotionReduced()).toBe(false);
     setup(null, false); expect(isMotionReduced()).toBe(false);
   });
-  it("旧ON/OFF設定は無視してOSの設定を使う", () => {
-    setup("full", true); expect(isMotionReduced()).toBe(true);
+  it("旧ON/OFF設定にかかわらず演出を有効にする", () => {
+    setup("full", true); expect(isMotionReduced()).toBe(false);
     setup("reduced", false); expect(isMotionReduced()).toBe(false);
   });
   it("保存できない場合もOSの設定で表示できる", () => {
     setup(null, true);
     vi.stubGlobal("localStorage", { getItem: () => { throw new Error("blocked"); } });
-    expect(isMotionReduced()).toBe(true);
+    expect(isMotionReduced()).toBe(false);
   });
 });

@@ -28,7 +28,7 @@ function ConfirmedOrder({ order, teams }: { order: readonly string[]; teams: rea
 function ResetResult({ marketId }: { marketId: string }) {
   return <details className="mt-3">
     <summary className="adm-note cursor-pointer">動作検証用：この結果をリセット</summary>
-    <p className="adm-note mt-2">この競技の配当と利子を確定前に戻し、ベットは残します。確定後に対象口座が変わっている場合や最終精算後は停止します。締切は保持します。</p>
+    <p className="adm-note mt-2">この競技の配当と利子を確定前に戻し、ベットは残します。確定後に対象口座が変わっている場合や最終精算後は停止します。締切時刻より前なら受付を再開し、時刻を過ぎていれば締め切ります。</p>
     <ActionForm action={resetConfirmedMarketAction} submitLabel="この競技の確定を取り消す" tone="danger">
       <input type="hidden" name="marketId" value={marketId} />
       <ConfirmCheck label="検証用に、この競技の順位・配当・利子を戻します" />

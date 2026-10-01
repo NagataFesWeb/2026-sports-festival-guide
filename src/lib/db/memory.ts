@@ -13,6 +13,7 @@ import {
 } from "../casino/fixtures";
 import type { Bet, CasinoAccountRecord, Market } from "../casino/types";
 import type { Event, EventResult, InviteEntry, Settings, Student, Team } from "../festival/types";
+import { effectiveDeadline } from "../festival/schedule";
 import type { Balances, BetFilter, CasinoMutation, Repository } from "./repository";
 
 type FinancialState = Pick<CasinoAccountRecord, "studentId" | "pointsBalance" | "debtAmount" | "finalBalanceBefore" | "finalDebt">;
@@ -197,7 +198,8 @@ export class MemoryRepository implements Repository {
     if (!same(result, undo.afterResult)) return "changed";
     const next = copy(s);
     for (const before of undo.before) Object.assign(next.accounts.find(a => a.studentId === before.studentId)!, before);
-    upsertBy(next.markets, copy(undo.market), m => m.id === marketId);
+    const deadline = effectiveDeadline(undo.market, s.events.find(e => e.id === market.eventId) ?? null);
+    upsertBy(next.markets, { ...copy(undo.market), status: Date.now() < Date.parse(deadline) ? "open" : "closed" }, m => m.id === marketId);
     next.bets = next.bets.filter(b => b.marketId !== marketId).concat(copy(undo.bets));
     next.eventResults = next.eventResults.filter(r => r.eventId !== market.eventId || r.heatId !== market.heatId);
     if (undo.result) next.eventResults.push(copy(undo.result));
