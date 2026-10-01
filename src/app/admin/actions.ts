@@ -21,6 +21,7 @@ import {
   removeEventResult,
   reopenMarket,
   resetSchedule,
+  resetConfirmedMarket,
   runFinalSettlement,
   saveEvent,
   saveTeam,
@@ -286,6 +287,13 @@ export async function settleCustomAction(_prev: ActionState | null, formData: Fo
   if (!checked(formData, "confirm")) return NEED_CONFIRM;
   const result = await settleCustomMarket(getRepository(), text(formData, "marketId"), text(formData, "winner"));
   return toState(result, (summary) => settleMessage("勝者を確定", summary));
+}
+
+export async function resetConfirmedMarketAction(_prev: ActionState | null, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  if (!checked(formData, "confirm")) return NEED_CONFIRM;
+  return toState(await resetConfirmedMarket(getRepository(), text(formData, "marketId")),
+    () => "この競技の確定・配当・利子を確定前に戻しました。再入力できます。締切時刻は保持しています。", ["/", "/me", "/casino", "/ranking"]);
 }
 
 // ---- CSV 取り込み ----

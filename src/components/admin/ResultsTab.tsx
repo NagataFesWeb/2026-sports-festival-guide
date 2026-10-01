@@ -1,6 +1,6 @@
 // 種目・学年を選び、全組の順位だけを並べ替える。
 import Link from "next/link";
-import { confirmEventResultAction, removeEventResultAction, settleCustomAction, settleOverallAction } from "@/app/admin/actions";
+import { confirmEventResultAction, removeEventResultAction, resetConfirmedMarketAction, settleCustomAction, settleOverallAction } from "@/app/admin/actions";
 import { formatDateTime } from "@/lib/admin/datetime";
 import type { Market } from "@/lib/casino/types";
 import { HORSE_OPTIONS, isHorseEvent } from "@/lib/casino/event-rules";
@@ -23,6 +23,17 @@ function ConfirmedOrder({ order, teams }: { order: readonly string[]; teams: rea
   return <ol className="adm-order-list" aria-label="確定した順位">{order.map((id, index) => <li key={id} className="adm-order-row">
     <span className="adm-num">{index + 1}位</span><span className="adm-order-name">{byId.get(id)?.name ?? id}</span>
   </li>)}</ol>;
+}
+
+function ResetResult({ marketId }: { marketId: string }) {
+  return <details className="mt-3">
+    <summary className="adm-note cursor-pointer">動作検証用：この結果をリセット</summary>
+    <p className="adm-note mt-2">この競技の配当と利子を確定前に戻し、ベットは残します。確定後に対象口座が変わっている場合や最終精算後は停止します。締切は保持します。</p>
+    <ActionForm action={resetConfirmedMarketAction} submitLabel="この競技の確定を取り消す" tone="danger">
+      <input type="hidden" name="marketId" value={marketId} />
+      <ConfirmCheck label="検証用に、この競技の順位・配当・利子を戻します" />
+    </ActionForm>
+  </details>;
 }
 
 export function ResultsTab({ events, teams, results, markets, selectedEventId, selectedHeatId }: Props) {
@@ -69,7 +80,7 @@ export function ResultsTab({ events, teams, results, markets, selectedEventId, s
       {result ? <div className="grid gap-2">
         <p className="text-om-blue font-black">確定済み（{formatDateTime(result.confirmedAt)}）</p>
         {isHorseEvent(selected) ? <p>確定済み：{HORSE_OPTIONS.find(option => option.id === result.order[0])?.name}の勝利</p> : <ConfirmedOrder order={result.order} teams={teams} />}
-        {market?.status === "settled" ? <p className="adm-note">配当確定済みのため、この順位は変更できません。</p> :
+        {market?.status === "settled" ? <ResetResult marketId={market.id} /> :
           <ActionForm action={removeEventResultAction} submitLabel="取り消して並べ直す" tone="ghost">
             <input type="hidden" name="eventId" value={selected.id} /><input type="hidden" name="heatId" value={heat.id} />
             <ConfirmCheck label="確定した順位を取り消します" />
@@ -84,6 +95,7 @@ export function ResultsTab({ events, teams, results, markets, selectedEventId, s
       {!overall ? <p className="adm-note">全体優勝の予想対象がありません。<Link href="/admin?tab=markets">「Market」タブで作成してください。</Link></p> :
         overall.status === "settled" ? <>
           <p className="text-om-blue font-black mb-2">確定済み</p><ConfirmedOrder order={overall.resultOrder ?? []} teams={teams} />
+          <ResetResult marketId={overall.id} />
           <Link href="/admin?tab=scores" className="adm-btn mt-3">総合順位の公開へ →</Link>
         </> : <ResultEntryForm key="overall" action={settleOverallAction} options={options}
           confirmLabel="1位の組へ賭けた口座に配当を付与します。確定後の順位変更はできません。" />}
@@ -92,7 +104,7 @@ export function ResultsTab({ events, teams, results, markets, selectedEventId, s
       <summary className="adm-title cursor-pointer">追加の二択予想</summary>
       {markets.filter(m => m.type === "custom").map(m => <div key={m.id} className="adm-row mt-3">
         <h3 className="adm-subtitle">{m.title}</h3>
-        {m.status === "settled" ? <p>確定済み：{m.options.find(o => o.id === m.resultOrder?.[0])?.name}</p> :
+        {m.status === "settled" ? <><p>確定済み：{m.options.find(o => o.id === m.resultOrder?.[0])?.name}</p><ResetResult marketId={m.id} /></> :
           <MarketWinnerForm action={settleCustomAction} options={m.options} hidden={{ marketId: m.id }} confirmLabel="この勝者で確定します" />}
       </div>)}
     </details>}

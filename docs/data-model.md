@@ -243,3 +243,7 @@ Supabaseは `supabase/casino-atomic.sql` のサーバー専用RPCを使う。残
 ### 騎馬戦の紅白予想
 
 種目別Marketのoptionsは `red / RED / 紅組` と `white / WHITE / 白組` の2件。event_id・heat_idを維持して進行の締切変更と連動する。結果はEventResult.orderとMarket.resultOrderに紅白2件を保存し、先頭を単勝の勝者にする。pointsは空。旧クラス別のベット・結果がある場合、`supabase/casino-event-rules.sql` は更新せず停止する。
+
+### 結果確定の取り消し記録
+
+casino_settlement_undo（market_id主キー、snapshot jsonb、created_at）はservice_roleだけが読み書きする。確定前後のMarket・対象口座の金融項目・ベット・競技結果を同じ保存RPCで記録する。パスワード・ニックネーム・登録時刻は記録しない。reset_market_settlement RPCはテーブルをロックし、確定後と現在の状態が一致する場合だけ記録から復元して記録を削除する。最終精算後は拒否。総合順位の取り消しではscores_published_atもNULLにする。

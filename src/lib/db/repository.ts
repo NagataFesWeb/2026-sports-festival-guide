@@ -34,9 +34,14 @@ export interface CasinoMutation {
   finalSettledAt?: string;
   requestKey?: string;
   acceptBefore?: string;
+  /** 結果確定直前の金融状態を、検証用取り消しのため同じ保存内で記録する。 */
+  recordSettlement?: boolean;
 }
 
+export type SettlementResetResult = "reset" | "changed" | "no_snapshot" | "finalized" | "not_settled";
+
 export interface Repository {
+  resetMarketSettlement(marketId: string): Promise<SettlementResetResult>;
   /** 競合なら何も書かず false。例外でも全変更がロールバックされる */
   commitCasinoMutation(change: CasinoMutation): Promise<boolean>;
   hasCasinoReceipt(requestKey: string): Promise<boolean>;

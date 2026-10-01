@@ -12,9 +12,9 @@ describe("サイト内の演出設定", () => {
     setup(null, true); expect(isMotionReduced()).toBe(true);
     setup(null, false); expect(isMotionReduced()).toBe(false);
   });
-  it("明示的なON/OFFはOSの設定より優先する", () => {
-    setup("full", true); expect(isMotionReduced()).toBe(false);
-    setup("reduced", false); expect(isMotionReduced()).toBe(true);
+  it("旧ON/OFF設定は無視してOSの設定を使う", () => {
+    setup("full", true); expect(isMotionReduced()).toBe(true);
+    setup("reduced", false); expect(isMotionReduced()).toBe(false);
   });
   it("保存できない場合もOSの設定で表示できる", () => {
     setup(null, true);

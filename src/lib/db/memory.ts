@@ -15,6 +15,15 @@ import type { Bet, CasinoAccountRecord, Market } from "../casino/types";
 import type { Event, EventResult, InviteEntry, Settings, Student, Team } from "../festival/types";
 import type { Balances, BetFilter, CasinoMutation, Repository } from "./repository";
 
+type FinancialState = Pick<CasinoAccountRecord, "studentId" | "pointsBalance" | "debtAmount" | "finalBalanceBefore" | "finalDebt">;
+function financialState(a: CasinoAccountRecord): FinancialState {
+  return { studentId: a.studentId, pointsBalance: a.pointsBalance, debtAmount: a.debtAmount, finalBalanceBefore: a.finalBalanceBefore, finalDebt: a.finalDebt };
+}
+interface SettlementUndo {
+  market: Market; afterMarket: Market; before: FinancialState[]; after: FinancialState[];
+  bets: Bet[]; afterBets: Bet[]; result: EventResult | null; afterResult: EventResult | null;
+}
+
 interface MemoryState {
   students: Student[];
   teams: Team[];
@@ -28,6 +37,7 @@ interface MemoryState {
   /** newId の連番 */
   seq: number;
   receipts?: string[];
+  settlementUndo?: Record<string, SettlementUndo>;
 }
 
 // ---- JSON ファイル永続化（任意。失敗しても無視する） ----
@@ -170,6 +180,33 @@ function upsertBy<T>(list: T[], item: T, isSame: (existing: T) => boolean): void
 }
 
 export class MemoryRepository implements Repository {
+  async resetMarketSettlement(marketId: string): Promise<import("./repository").SettlementResetResult> {
+    const s = state();
+    if (s.settings.finalSettledAt) return "finalized";
+    const market = s.markets.find(m => m.id === marketId);
+    if (market?.status !== "settled") return "not_settled";
+    const undo = s.settlementUndo?.[marketId];
+    if (!undo) return "no_snapshot";
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    if (!same(market, undo.afterMarket) || !same(s.bets.filter(b => b.marketId === marketId), undo.afterBets)) return "changed";
+    for (const after of undo.after) {
+      const account = s.accounts.find(a => a.studentId === after.studentId);
+      if (!account || !same(financialState(account), after)) return "changed";
+    }
+    const result = s.eventResults.find(r => r.eventId === market.eventId && r.heatId === market.heatId) ?? null;
+    if (!same(result, undo.afterResult)) return "changed";
+    const next = copy(s);
+    for (const before of undo.before) Object.assign(next.accounts.find(a => a.studentId === before.studentId)!, before);
+    upsertBy(next.markets, copy(undo.market), m => m.id === marketId);
+    next.bets = next.bets.filter(b => b.marketId !== marketId).concat(copy(undo.bets));
+    next.eventResults = next.eventResults.filter(r => r.eventId !== market.eventId || r.heatId !== market.heatId);
+    if (undo.result) next.eventResults.push(copy(undo.result));
+    if (market.type === "overall") next.settings.scoresPublishedAt = null;
+    delete next.settlementUndo![marketId];
+    holder.__dbMemoryState = next;
+    saveState(next);
+    return "reset";
+  }
   async hasCasinoReceipt(key: string): Promise<boolean> {
     return state().receipts?.includes(key) ?? false;
   }
@@ -205,6 +242,18 @@ export class MemoryRepository implements Repository {
     if (c.eventResult) upsertBy(next.eventResults, copy(c.eventResult), (v) => resultKey(v.eventId, v.heatId) === resultKey(c.eventResult!.eventId, c.eventResult!.heatId));
     if (c.finalSettledAt) next.settings.finalSettledAt = c.finalSettledAt;
     if (c.requestKey) (next.receipts ??= []).push(c.requestKey);
+    if (c.recordSettlement && c.market) {
+      const market = s.markets.find(m => m.id === c.market!.id)!;
+      const financialIds = new Set(c.accounts?.map(a => a.studentId));
+      (next.settlementUndo ??= {})[market.id] = {
+        market: copy(market), afterMarket: copy(c.market),
+        before: s.accounts.filter(a => financialIds.has(a.studentId)).map(financialState),
+        after: next.accounts.filter(a => financialIds.has(a.studentId)).map(financialState),
+        bets: copy(s.bets.filter(b => b.marketId === market.id)), afterBets: copy(next.bets.filter(b => b.marketId === market.id)),
+        result: copy(s.eventResults.find(r => r.eventId === market.eventId && r.heatId === market.heatId) ?? null),
+        afterResult: copy(next.eventResults.find(r => r.eventId === market.eventId && r.heatId === market.heatId) ?? null),
+      };
+    }
     holder.__dbMemoryState = next;
     saveState(next);
     return true;

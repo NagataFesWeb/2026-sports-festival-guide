@@ -180,3 +180,7 @@ GitHub Actionsはpush／Pull Request時に、追跡禁止ファイル・秘密�
 準備確認は `node scripts/check-casino-readiness.mjs`。前日準備、締切の設定、結果入力、障害時の対応は [当日運営手順](docs/casino-operations.md) を参照してください。本番のSQL適用と公開URLでの確認が完了するまでは受付を開始しないでください。
 
 Supabase CLI 2.119.0を開発依存に追加しました。初回の `npm run db:login` 後、`npm run db:check` で接続確認、`npm run db:sql -- supabase/ファイル.sql` でSQLを実行できます。接続先は `.env.local` のURLを使います。カジノのSQLは接続先に適用済み（8チーム・12種目・14Market）。認証情報はGitへ保存しません。詳しいコマンドは [当日運営手順](docs/casino-operations.md) を参照してください。
+
+### 動作検証で確定した結果を戻す
+
+管理画面の「結果入力」で確定済みの競技を選び、「動作検証用：この結果をリセット」を開き、確認して実行する。配当と利子を確定前に戻し、ベットと口座は残す。対象口座が確定後に変わっていたら停止する。機能導入前の確定・最終精算後は対象外。締切は保持するため、ベットも試す場合はMarketタブで締切を変更する。表画面への反映は再デプロイが必要。

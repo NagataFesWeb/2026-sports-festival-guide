@@ -384,6 +384,10 @@ const fromAccount = (a: CasinoAccountRecord): AccountRow => ({
 });
 
 export class SupabaseRepository implements Repository {
+  async resetMarketSettlement(marketId: string): Promise<import("./repository").SettlementResetResult> {
+    const response = await send("rpc/reset_market_settlement", { method: "POST", body: { target_id: marketId } });
+    return await response.json();
+  }
   async hasCasinoReceipt(requestKey: string): Promise<boolean> {
     return (await selectRows<{ request_key: string }>(`casino_receipts?select=request_key&${eq("request_key", requestKey)}&limit=1`)).length > 0;
   }
@@ -410,6 +414,7 @@ export class SupabaseRepository implements Repository {
         final_settled_at: c.finalSettledAt ?? null,
         request_key: c.requestKey ?? null,
         accept_before: c.acceptBefore ?? null,
+        record_settlement: c.recordSettlement ?? false,
       } },
     });
     return (await res.json()) === true;

@@ -464,7 +464,7 @@ async function persistSettlement(repo: Repository, market: Market, order: readon
     if (!await repo.commitCasinoMutation({
       expectedFinalSettledAt: null, expectedAccounts: accounts, allAccounts: true,
       expectedMarkets: [current], expectedBets: bets, betScope: current.id,
-      market: settled.value.market, payouts: settled.value.payouts, accounts: settled.value.accounts, eventResult,
+      market: settled.value.market, payouts: settled.value.payouts, accounts: settled.value.accounts, eventResult, recordSettlement: true,
     })) continue;
     const before = new Map(accounts.map((a) => [a.studentId, a]));
     return ok({ settled: true,
@@ -478,6 +478,19 @@ async function persistSettlement(repo: Repository, market: Market, order: readon
 export interface EventResultInput {
   /** 全組の順位。得点は入力・計算しない。 */
   order?: string[];
+}
+
+/** 検証で確定した競技だけを、記録と照合して取り消す。 */
+export async function resetConfirmedMarket(repo: Repository, marketId: string): Promise<AdminResult<null>> {
+  const result = await repo.resetMarketSettlement(marketId);
+  if (result === "reset") return ok(null);
+  const messages = {
+    changed: "確定後に対象口座のベット・借入・他の配当などが変わっています。ほかの操作を壊さないためリセットを停止しました。",
+    no_snapshot: "この確定には取り消し記録がありません。この機能の導入後に確定した結果だけリセットできます。",
+    finalized: "最終精算済みのためリセットできません。",
+    not_settled: "この予想対象は未確定です。",
+  };
+  return fail(messages[result]);
 }
 
 /** ヒートの全組順位を保存し、対応するMarketを同時に精算する。 */

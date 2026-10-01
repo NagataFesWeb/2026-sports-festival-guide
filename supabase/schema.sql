@@ -175,6 +175,17 @@ create table if not exists public.casino_receipts (
 alter table public.casino_receipts enable row level security;
 grant all on table public.casino_receipts to service_role;
 
+
+-- 検証用の取り消し記録。口座のパスワード・氏名は保存しない。
+create table if not exists public.casino_settlement_undo (
+  market_id text primary key references public.markets(id) on delete cascade,
+  snapshot jsonb not null,
+  created_at timestamptz not null default now()
+);
+alter table public.casino_settlement_undo enable row level security;
+revoke all on public.casino_settlement_undo from anon, authenticated;
+grant all on public.casino_settlement_undo to service_role;
+
 create or replace function public.commit_casino_mutation(change jsonb)
 returns boolean
 language plpgsql
@@ -187,10 +198,11 @@ declare
   row_bet public.bets;
   row_market public.markets;
   row_result public.event_results;
+  undo_snapshot jsonb;
 begin
   -- service_role のサーバー専用。通常の管理更新とも同時に上書きしない。
   lock table public.settings, public.events, public.markets, public.casino_accounts,
-    public.bets, public.event_results, public.casino_receipts in share row exclusive mode;
+    public.bets, public.event_results, public.casino_receipts, public.casino_settlement_undo in share row exclusive mode;
   if change->>'request_key' is not null and exists (
     select 1 from public.casino_receipts where request_key = change->>'request_key'
   ) then return true; end if;
@@ -226,6 +238,16 @@ begin
     (select 1 from public.casino_accounts where student_id = change->'insert_account'->>'student_id') then return false; end if;
   if change->>'insert_bet' is not null and exists
     (select 1 from public.bets where id = change->'insert_bet'->>'id') then return false; end if;
+
+  if coalesce((change->>'record_settlement')::boolean, false) and change->>'market' is not null then
+    undo_snapshot := jsonb_build_object(
+      'market', (select to_jsonb(m) from public.markets m where id = change->'market'->>'id'),
+      'accounts', coalesce((select jsonb_agg(to_jsonb(a)-'password_hash'-'nickname'-'registered_at' order by student_id)
+        from public.casino_accounts a where student_id in (select value->>'student_id' from jsonb_array_elements(change->'accounts'))), '[]'::jsonb),
+      'bets', coalesce((select jsonb_agg(to_jsonb(b) order by id) from public.bets b where market_id = change->'market'->>'id'), '[]'::jsonb),
+      'result', (select to_jsonb(r) from public.event_results r where event_id = change->'market'->>'event_id' and heat_id = change->'market'->>'heat_id')
+    );
+  end if;
 
   -- ここからの例外はRPC全体をロールバックする。配当だけ／残高だけは残さない。
   for item in select value from jsonb_array_elements(change->'accounts') loop
@@ -266,8 +288,69 @@ begin
   if change->>'request_key' is not null then
     insert into public.casino_receipts (request_key) values (change->>'request_key');
   end if;
+  if undo_snapshot is not null then
+    undo_snapshot := undo_snapshot || jsonb_build_object(
+      'after_market', (select to_jsonb(m) from public.markets m where id = change->'market'->>'id'),
+      'after_accounts', coalesce((select jsonb_agg(to_jsonb(a)-'password_hash'-'nickname'-'registered_at' order by student_id)
+        from public.casino_accounts a where student_id in (select value->>'student_id' from jsonb_array_elements(change->'accounts'))), '[]'::jsonb),
+      'after_bets', coalesce((select jsonb_agg(to_jsonb(b) order by id) from public.bets b where market_id = change->'market'->>'id'), '[]'::jsonb),
+      'after_result', (select to_jsonb(r) from public.event_results r where event_id = change->'market'->>'event_id' and heat_id = change->'market'->>'heat_id')
+    );
+    insert into public.casino_settlement_undo(market_id, snapshot) values (change->'market'->>'id', undo_snapshot)
+      on conflict (market_id) do update set snapshot = excluded.snapshot, created_at = now();
+  end if;
   return true;
 end;
 $$;
 revoke all on function public.commit_casino_mutation(jsonb) from public, anon, authenticated;
 grant execute on function public.commit_casino_mutation(jsonb) to service_role;
+
+-- 記録後の金融状態が変わっていたら取り消さない。全復元は同じトランザクション。
+create or replace function public.reset_market_settlement(target_id text)
+returns text language plpgsql security invoker set search_path = public, pg_temp as $$
+declare
+  undo_snapshot jsonb; current_market public.markets; item jsonb;
+  row_account public.casino_accounts; row_bet public.bets; row_result public.event_results;
+begin
+  lock table public.settings, public.events, public.markets, public.casino_accounts,
+    public.bets, public.event_results, public.casino_receipts, public.casino_settlement_undo in share row exclusive mode;
+  if (select final_settled_at from public.settings where id = 1) is not null then return 'finalized'; end if;
+  select * into current_market from public.markets where id = target_id;
+  if not found or current_market.status <> 'settled' then return 'not_settled'; end if;
+  select snapshot into undo_snapshot from public.casino_settlement_undo where market_id = target_id;
+  if not found then return 'no_snapshot'; end if;
+  if to_jsonb(current_market) is distinct from undo_snapshot->'after_market' then return 'changed'; end if;
+  for item in select value from jsonb_array_elements(undo_snapshot->'after_accounts') loop
+    if (select to_jsonb(a)-'password_hash'-'nickname'-'registered_at' from public.casino_accounts a where student_id = item->>'student_id')
+      is distinct from item then return 'changed'; end if;
+  end loop;
+  if coalesce((select jsonb_agg(to_jsonb(b) order by id) from public.bets b where market_id = target_id), '[]'::jsonb)
+    is distinct from undo_snapshot->'after_bets' then return 'changed'; end if;
+  if coalesce((select to_jsonb(r) from public.event_results r where event_id = current_market.event_id and heat_id = current_market.heat_id), 'null'::jsonb)
+    is distinct from undo_snapshot->'after_result' then return 'changed'; end if;
+  for item in select value from jsonb_array_elements(undo_snapshot->'accounts') loop
+    row_account := jsonb_populate_record(null::public.casino_accounts, item);
+    update public.casino_accounts set points_balance = row_account.points_balance, debt_amount = row_account.debt_amount,
+      final_balance_before = row_account.final_balance_before, final_debt = row_account.final_debt where student_id = row_account.student_id;
+  end loop;
+  for item in select value from jsonb_array_elements(undo_snapshot->'bets') loop
+    row_bet := jsonb_populate_record(null::public.bets, item);
+    update public.bets set payout_amount = row_bet.payout_amount where id = row_bet.id;
+  end loop;
+  update public.markets set status = undo_snapshot->'market'->>'status',
+    result_order = case when undo_snapshot->'market'->>'result_order' is null then null else undo_snapshot->'market'->'result_order' end
+    where id = target_id;
+  -- 元が未確定の場合、SQL NULLを保持する。
+  if undo_snapshot->'market'->>'result_order' is null then update public.markets set result_order = null where id = target_id; end if;
+  delete from public.event_results where event_id = current_market.event_id and heat_id = current_market.heat_id;
+  if undo_snapshot->>'result' is not null then
+    row_result := jsonb_populate_record(null::public.event_results, undo_snapshot->'result');
+    insert into public.event_results select row_result.*;
+  end if;
+  if current_market.type = 'overall' then update public.settings set scores_published_at = null where id = 1; end if;
+  delete from public.casino_settlement_undo where market_id = target_id;
+  return 'reset';
+end;
+$$;
+revoke all on function public.reset_market_settlement(text) from public, anon, authenticated;
+grant execute on function public.reset_market_settlement(text) to service_role;
