@@ -1,7 +1,9 @@
 "use client";
 
 // トップのヒーロー（モック v2 の isTop 冒頭）。黒地に「滅！」と 2 段のマーキー、透かしの NAGATA
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useSiteMotion } from "@/components/SiteMotion";
+import { useIntro } from "./HomeExperience";
 
 /** 背面のマーキー文字列（モックの bgLine / bgLineEn / heartLine） */
 const BG_LINE = "青春 爆裂 青春 爆裂 青春 爆裂 青春 爆裂 青春 爆裂 ";
@@ -13,7 +15,10 @@ const WATERMARK = "NAGATA ".repeat(9).trim();
 /** 「滅！」の巨大文字。字面は同じで色だけ変える（グリッチの二重像に使う） */
 const MEI_CLASS = "font-om-mincho text-[min(58vw,30vh)] leading-[0.78] font-extrabold tracking-[-0.02em]";
 
-export function Hero({ dateLabel, openLabel }: { dateLabel: string; openLabel: string }) {
+export function Hero({ dateLabel, openLabel }: { dateLabel: string; openLabel: ReactNode }) {
+  const { enabled } = useSiteMotion();
+  const { introReady } = useIntro();
+  const heroRef = useRef<HTMLElement>(null);
   const watermarkRef = useRef<HTMLDivElement | null>(null);
   const marqueeRef = useRef<HTMLDivElement | null>(null);
   /** クリックで「滅！」の登場アニメーションをやり直すためのキー */
@@ -23,8 +28,13 @@ export function Hero({ dateLabel, openLabel }: { dateLabel: string; openLabel: s
     // ポインタ位置とスクロール量で透かしとマーキーを少しずらす（タッチでもスクロールで動く）
     let pointerX = 0;
     let pointerY = 0;
+    let frame = 0;
+    let inView = true;
+    if (!enabled || !introReady) return;
 
     const apply = (): void => {
+      frame = 0;
+      if (!inView) return;
       const scrolled = window.scrollY;
       if (watermarkRef.current !== null) {
         watermarkRef.current.style.transform = `translate(${pointerX * -26}px,${pointerY * -18 - scrolled * 0.06}px)`;
@@ -34,22 +44,32 @@ export function Hero({ dateLabel, openLabel }: { dateLabel: string; openLabel: s
       }
     };
 
+    const schedule = () => { if (!frame && inView) frame = requestAnimationFrame(apply); };
+
     const onMove = (event: PointerEvent): void => {
       pointerX = event.clientX / window.innerWidth - 0.5;
       pointerY = event.clientY / window.innerHeight - 0.5;
-      apply();
+      schedule();
     };
 
     window.addEventListener("pointermove", onMove, { passive: true });
-    window.addEventListener("scroll", apply, { passive: true });
+    window.addEventListener("scroll", schedule, { passive: true });
+    const observer = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      if (heroRef.current) heroRef.current.dataset.motionVisible = String(inView);
+      if (inView) schedule();
+    });
+    if (heroRef.current) observer.observe(heroRef.current);
     return () => {
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("scroll", apply);
+      window.removeEventListener("scroll", schedule);
+      cancelAnimationFrame(frame);
+      observer.disconnect();
     };
-  }, []);
+  }, [enabled, introReady]);
 
   return (
-    <section className="relative flex min-h-[min(100vh,900px)] flex-col justify-center overflow-hidden bg-om-ink pt-[clamp(56px,10vh,96px)] text-om-paper">
+    <section ref={heroRef} data-intro-ready={introReady} className="om-hero relative flex min-h-[min(100vh,900px)] flex-col justify-center overflow-hidden bg-om-ink pt-[clamp(56px,10vh,96px)] text-om-paper">
       <div
         ref={watermarkRef}
         aria-hidden="true"
@@ -85,7 +105,7 @@ export function Hero({ dateLabel, openLabel }: { dateLabel: string; openLabel: s
         </div>
       </div>
 
-      <div className="om-shake relative px-[clamp(18px,5vw,60px)]">
+      <div key={`intro-${introReady}-${enabled}`} className={`${introReady && enabled ? "om-shake" : ""} relative px-[clamp(18px,5vw,60px)]`}>
         <div className="flex flex-wrap items-start justify-between gap-[14px]">
           <div className="font-display text-[clamp(10px,1.4vw,13px)] leading-[2] tracking-[0.32em]">
             NAGATA HIGH SCHOOL
@@ -107,10 +127,10 @@ export function Hero({ dateLabel, openLabel }: { dateLabel: string; openLabel: s
           <span className="relative inline-block">
             <button
               type="button"
-              key={slamKey}
+              key={`${slamKey}-${introReady}-${enabled}`}
               onClick={() => setSlamKey((key) => key + 1)}
               aria-label="滅！"
-              className={`om-slam block cursor-pointer text-om-paper select-none ${MEI_CLASS}`}
+              className={`${introReady && enabled ? "om-slam" : ""} block cursor-pointer text-om-paper select-none ${MEI_CLASS}`}
             >
               滅<span className="text-om-pink">！</span>
             </button>

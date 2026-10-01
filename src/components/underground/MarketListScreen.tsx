@@ -11,6 +11,8 @@ import { Lcd } from "./Lcd";
 import { useSound } from "./sound";
 import { useServerClock } from "./useServerClock";
 
+import { casinoFetch } from "./request";
+
 const ST_LABEL = { open: "MARKET OPEN", closed: "MARKET CLOSED", settled: "SETTLED" };
 
 export function MarketListScreen({ view }: { view: MarketListView }) {
@@ -19,6 +21,9 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
   const now = useServerClock(view.serverNow);
   const [cursor, setCursor] = useState(0);
   const [askExit, setAskExit] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const [exitError, setExitError] = useState(false);
+  const exitBusy = useRef(false);
   // 初回表示の時刻。これと違う serverNow が届いたら「更新された」とみなす
   const [initialSync] = useState(view.serverNow);
 
@@ -48,6 +53,7 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
 
   function move(d: number) {
     const n = rows.length;
+    if (n === 0) return;
     setCursor((c) => (c + d + n) % n);
     blip(560, 0.03);
   }
@@ -58,13 +64,14 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
   }
 
   async function exit() {
-    // セッション Cookie を消してから表の会場に戻る。失敗しても遷移は止めない
+    if (exitBusy.current) return;
+    exitBusy.current = true; setExiting(true); setExitError(false);
     try {
-      await fetch("/api/casino/logout", { method: "POST" });
-    } catch {
-      // 通信できなくても Cookie は期限切れで無効になる
-    }
-    router.push("/");
+      const res = await casinoFetch("/api/casino/logout", { method: "POST" });
+      if (!res.ok) throw new Error("logout");
+      router.push("/");
+    } catch { setExitError(true); }
+    finally { exitBusy.current = false; setExiting(false); }
   }
 
   function sync() {
@@ -102,10 +109,13 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
     const h = (e: KeyboardEvent) => keyRef.current(e);
     window.addEventListener("keydown", h);
     // 締切・プールの更新はサーバーコンポーネントの再取得で反映する
-    const t = setInterval(() => router.refresh(), 10_000);
+    const t = setInterval(() => { if (!document.hidden) router.refresh(); }, 10_000);
+    const onVisible = () => { if (!document.hidden) router.refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener("keydown", h);
       clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [router]);
 
@@ -151,6 +161,7 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
                   <br />
                   ベットとクレジットは保持される。
                 </div>
+                {exitError && <p className="mt-2 font-jp text-lcd-red" role="alert">通信できずログアウトできませんでした。接続を確認して再試行してください。</p>}
                 <div className="mt-4 flex gap-2">
                   <button
                     type="button"
@@ -162,9 +173,10 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
                   <button
                     type="button"
                     onClick={() => void exit()}
+                    disabled={exiting}
                     className="min-h-11 flex-1 cursor-pointer border border-lcd-sel bg-lcd-sel px-1.5 py-2 text-[11px] tracking-[.18em] text-lcd-ink"
                   >
-                    YES ・ ENTER
+                    {exiting ? "DISCONNECTING..." : "YES ・ ENTER"}
                   </button>
                 </div>
               </div>
@@ -182,6 +194,7 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
           </div>
           <div className="flex-none">OPEN {String(openRows.length).padStart(2, "0")}</div>
         </div>
+        {rows.length === 0 && <p className="py-4 font-jp text-lcd-text" role="status">予想の受付は準備中です。更新しても表示されない場合は運営に確認してください。</p>}
         {rows.map((r, i) => {
           const sel = cursor === i;
           const isNext = next?.id === r.id;
@@ -201,13 +214,12 @@ export function MarketListScreen({ view }: { view: MarketListView }) {
               onMouseEnter={() => setCursor(i)}
               className={`ug-row mb-[3px] block w-full cursor-pointer border px-2 py-[7px] text-left ${sel ? "ug-sel" : "text-lcd-text"} ${
                 isNext ? (next && next.rem < 60_000 ? "border-lcd-red" : "border-lcd-sel") : closed ? "border-lcd-red/25" : "border-transparent"
-              } ${closed ? "line-through decoration-1 opacity-55" : ""}`}
+              } ${closed ? "opacity-80" : ""}`}
             >
               <span className="flex items-baseline gap-2">
                 <span className={`w-3 flex-none ${sel ? "text-lcd-ink" : "text-lcd-faint"}`}>{sel ? ">" : " "}</span>
                 <span className="flex-none font-display text-[15px] tracking-[.1em]">{r.no}</span>
-                <span className="min-w-0 truncate font-display text-[15px] tracking-[.14em]">{r.en}</span>
-                <span className={`hidden truncate font-jp text-[11px] sm:inline ${sel ? "text-lcd-ink/70" : "text-lcd-dim"}`}>{r.title}</span>
+                <span className="min-w-0 font-jp text-[14px] font-bold tracking-[.04em]">{r.title}</span>
                 {tag && (
                   <span
                     className={`flex-none px-1.5 py-0.5 text-[9px] tracking-[.16em] ${

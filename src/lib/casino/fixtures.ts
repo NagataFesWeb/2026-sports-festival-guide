@@ -1,6 +1,7 @@
 // Supabase 接続までの仮データ。種目は令和8年度 第79回体育祭の演技台帳（12 プログラム）をそのまま入れる
-// 締切はサーバー起動（初回アクセス）時刻からの相対、種目の定刻は「当日（Asia/Tokyo）の時計時刻」で決める
+// 締切は開発用の相対時刻、プログラムの開催日は2026-10-02に固定する。
 import { hashPassword } from "../auth/password";
+import { FESTIVAL_DAY } from "../festival/festival-day";
 import type { Event, EventEntry, EventResult, Heat, InviteEntry, Student, Team } from "../festival/types";
 import { settlePayouts } from "./odds";
 import type {
@@ -17,14 +18,14 @@ import type {
 export const FIXTURE_STUDENT_ID = "2117";
 
 const TEAMS: MarketOption[] = [
-  { id: "t1", num: "01", name: "1組 紅蓮" },
-  { id: "t2", num: "02", name: "2組 蒼天" },
-  { id: "t3", num: "03", name: "3組 黄雷" },
-  { id: "t4", num: "04", name: "4組 翠嵐" },
-  { id: "t5", num: "05", name: "5組 紫電" },
-  { id: "t6", num: "06", name: "6組 橙火" },
-  { id: "t7", num: "07", name: "7組 桃嵐" },
-  { id: "t8", num: "08", name: "8組 黒鉄" },
+  { id: "t1", num: "01", name: "1組 黄色" },
+  { id: "t2", num: "02", name: "2組 水色" },
+  { id: "t3", num: "03", name: "3組 白" },
+  { id: "t4", num: "04", name: "4組 赤" },
+  { id: "t5", num: "05", name: "5組 橙" },
+  { id: "t6", num: "06", name: "6組 桃色" },
+  { id: "t7", num: "07", name: "7組 緑" },
+  { id: "t8", num: "08", name: "8組 青" },
 ];
 
 const RED_WHITE: MarketOption[] = [
@@ -63,26 +64,24 @@ function minutesFrom(now: Date, min: number): string {
 const BOOT_TIME = new Date();
 
 /**
- * 当日（Asia/Tokyo）の指定時刻を ISO 8601 で返す。
- * サーバーのタイムゾーンに依存しないよう、日付は BOOT_TIME を +9 時間ずらして取り出す
+ * 確認済みの開催日（2026-10-02）の指定時刻をISO 8601で返す。
  */
 function todayAt(clock: string): string {
-  const jstDate = new Date(BOOT_TIME.getTime() + 9 * 60 * 60_000).toISOString().slice(0, 10);
   const [hour, minute] = clock.split(":");
-  return `${jstDate}T${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:00+09:00`;
+  return `${FESTIVAL_DAY.date}T${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:00+09:00`;
 }
 
 // ---- 表画面（体育祭本体）の仮データ ----
 
 const TEAM_COLORS: Record<string, string> = {
-  t1: "#d92b2b", // 紅蓮
-  t2: "#1f6fd0", // 蒼天
-  t3: "#e8b21a", // 黄雷
-  t4: "#1f9d55", // 翠嵐
-  t5: "#7b3fbf", // 紫電
-  t6: "#ec7a1c", // 橙火
-  t7: "#e0629b", // 桃嵐
-  t8: "#3a3f46", // 黒鉄
+  t1: "#ffe600", // 黄色
+  t2: "#87ceeb", // 水色
+  t3: "#ffffff", // 白
+  t4: "#d92b2b", // 赤
+  t5: "#ec7a1c", // 橙
+  t6: "#ff6fb5", // 桃色
+  t7: "#1f9d55", // 緑
+  t8: "#1f6fd0", // 青
 };
 
 /** 色別対抗チーム（全 8 チーム）。ID は Market の option ID と一致させる */
@@ -299,11 +298,11 @@ export const SEED_EVENTS: Event[] = [
     participants: "部活動",
     gatherStart: "部行進退場後",
     gatherPlace: "フィールド（本部側）",
-    belongings: "ユニフォーム。部に関連した道具をバトン代わりにしてよい",
+    belongings: "ユニフォーム。パフォーマンスリレーのみ部に関連した道具をバトン代わりにできる",
     formation: "lane",
-    formationNote: "フィールド本部側でパフォーマンス→女子→男子①→男子②の順にレーンへ並ぶ",
+    formationNote: "フィールド本部側でパフォーマンス→女子①→女子②→男子①→男子②の順に並ぶ",
     description:
-      "パフォーマンスリレー(1周)→女子レース(200m×4)→男子レース1(200m×4)→男子レース2(200m×4)の順で行う。各運動部4名がユニフォームで走る。部活動に関連した道具であればバトン代わりに使ってよい。オープン制・コーナートップ制を用いる。",
+      "パフォーマンスリレー(1周)→女子レース1(200m×4)→女子レース2(200m×4)→男子レース1(200m×4)→男子レース2(200m×4)の順で行う。ユニフォームで走る。部に関連した道具をバトン代わりにできるのはパフォーマンスリレーのみ。",
   },
   {
     id: "ev-09",
@@ -630,7 +629,7 @@ export function createFixtureState(now: Date): CasinoState {
   for (const m of state.markets) {
     if (m.status !== "settled" || !m.resultOrder) continue;
     const marketBets = state.bets.filter((b) => b.marketId === m.id);
-    const payouts = settlePayouts(marketBets, m.resultOrder, m);
+    const payouts = settlePayouts(marketBets, m.resultOrder);
     for (const b of marketBets) b.payoutAmount = payouts.get(b.id) ?? 0;
   }
 

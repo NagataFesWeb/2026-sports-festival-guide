@@ -130,6 +130,7 @@ async function renderTab(tab: AdminTab, selectedEventId: string | undefined): Pr
       const sortedTeams = bySortOrder(teams);
       return (
         <ResultsTab
+          selectedEventId={selectedEventId}
           events={byProgramOrder(events)}
           teams={sortedTeams}
           results={results}

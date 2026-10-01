@@ -112,6 +112,7 @@ export interface HistoryView {
 
 export interface RankRowView {
   rank: number;
+  /** ユーザーID。保存データとの互換性のためフィールド名を維持する */
   studentId: string;
   name: string;
   /** 表示用の名前（口座作成時のニックネームがあればそれ、無ければ name） */
@@ -152,7 +153,7 @@ export type ApiErrorCode =
   | "bad_request"
   // ---- 入場・セッション ----
   | "unauthorized"
-  | "not_in_roster"
+  | "invalid_user_id"
   | "already_registered"
   | "wrong_password"
   | "invalid_password"

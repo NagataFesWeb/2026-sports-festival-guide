@@ -1,7 +1,6 @@
 // 最終順位（ランキング）の算出。docs/data-model.md「最終順位（ランキング）ロジック」を参照
 import { displayNameOf } from "./nickname";
 import type { CasinoAccountRecord } from "./types";
-import type { Student } from "../festival/types";
 
 export interface RankingRow {
   rank: number;
@@ -21,15 +20,14 @@ export interface RankingRow {
  * 口座一覧を純資産の降順でランキングする。
  * 純資産が同じ場合は studentId 昇順で安定させたうえで、同順位は同じ rank を共有する（1,1,3方式）。
  */
-export function rankAccounts(accounts: readonly CasinoAccountRecord[], students: readonly Student[]): RankingRow[] {
-  const nameById = new Map(students.map((s) => [s.studentId, s.name]));
-
+export function rankAccounts(accounts: readonly CasinoAccountRecord[]): RankingRow[] {
   const rows = accounts.map((a) => {
     const finalized = a.finalBalanceBefore !== null;
     const netWorth = finalized ? a.pointsBalance : a.pointsBalance - a.debtAmount;
     const pointsBalance = finalized ? (a.finalBalanceBefore as number) : a.pointsBalance;
     const debtAmount = finalized ? (a.finalDebt ?? 0) : a.debtAmount;
-    const name = nameById.get(a.studentId) ?? a.studentId;
+    // ユーザーIDが学籍番号と一致しても生徒名簿の氏名には結び付けない。
+    const name = displayNameOf(a.nickname, a.studentId);
     return {
       studentId: a.studentId,
       name,

@@ -10,6 +10,7 @@ import { HardwareControls } from "./HardwareControls";
 import { Lcd } from "./Lcd";
 import { useSound } from "./sound";
 import { useServerClock } from "./useServerClock";
+import { useVisibleRefresh } from "./useVisibleRefresh";
 
 /** 符号つきの表示（表示専用） */
 function signed(n: number): string {
@@ -17,6 +18,7 @@ function signed(n: number): string {
 }
 
 export function RankScreen({ view }: { view: RankView }) {
+  useVisibleRefresh();
   const router = useRouter();
   const { blip } = useSound();
   const now = useServerClock(view.serverNow);
@@ -26,7 +28,7 @@ export function RankScreen({ view }: { view: RankView }) {
       e.preventDefault();
       return;
     }
-    if (e.key === "Escape" || e.key === "Enter") {
+    if (e.key === "Escape" || (e.key === "Enter" && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLAnchorElement))) {
       e.preventDefault();
       router.push("/casino");
     }
@@ -120,7 +122,7 @@ export function RankScreen({ view }: { view: RankView }) {
                 className={`mb-px flex gap-2 px-1 py-[5px] text-[11.5px] ${r.me ? "ug-sel" : "text-lcd-text"}`}
               >
                 <span className={`w-8 flex-none text-right tabular-nums ${r.me ? "text-lcd-ink" : "text-lcd-hi"}`}>{r.rank}</span>
-                <span className="w-[68px] flex-none tabular-nums">{r.studentId}</span>
+                <span className="w-[68px] flex-none truncate" title={r.studentId}>{r.studentId}</span>
                 <span className="min-w-0 flex-1 truncate font-jp">{r.displayName}</span>
                 <span
                   className={`w-[76px] flex-none text-right tabular-nums ${

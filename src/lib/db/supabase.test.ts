@@ -40,6 +40,32 @@ afterEach(() => {
 });
 
 describe("認証ヘッダ", () => {
+  it("原子的保存はRPC一回で、競合ならfalseを返す", async () => {
+    fetchMock.mockResolvedValueOnce(json(true)).mockResolvedValueOnce(json(false));
+    const change = { expectedFinalSettledAt: null, expectedAccounts: [], requestKey: "bet:me:uuid", acceptBefore: "2026-10-02T01:00:00Z" };
+    expect(await repo.commitCasinoMutation(change)).toBe(true);
+    expect(call(0).url).toBe(`${BASE}/rest/v1/rpc/commit_casino_mutation`);
+    expect(call(0).method).toBe("POST");
+    expect(call(0).body).toMatchObject({ change: { request_key: "bet:me:uuid", expected_final_settled_at: null, accept_before: change.acceptBefore, expected_accounts: [], accounts: [], payouts: [] } });
+    expect(await repo.commitCasinoMutation(change)).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+  it("人数だけHEADで取得し、名簿の行を転送しない", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { headers: { "content-range": "0-0/960" } }));
+    expect(await repo.countStudents()).toBe(960);
+    expect(call(0).method).toBe("HEAD");
+    expect(call(0).url).toBe(`${BASE}/rest/v1/students?select=student_id`);
+    expect(call(0).headers.Prefer).toBe("count=exact");
+    expect(call(0).headers.Range).toBe("0-0");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("空名簿は0人、件数ヘッダが無い場合は取得失敗として扱う", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { headers: { "content-range": "*/0" } }));
+    expect(await repo.countStudents()).toBe(0);
+    fetchMock.mockResolvedValueOnce(new Response(null));
+    await expect(repo.countStudents()).rejects.toThrow("名簿件数");
+  });
   it("apikey と Authorization を付ける", async () => {
     fetchMock.mockResolvedValue(json([{ student_id: "2117", name: "サンプル生徒04", grade: 2, class_no: 1 }]));
     const students = await repo.listStudents();
@@ -328,15 +354,20 @@ describe("replaceInvites", () => {
 });
 
 describe("settings", () => {
-  it("id=1 を明示して upsert する", async () => {
+  it("id=1 の指定列だけを更新する", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 201 }));
     await repo.updateSettings({ finalSettledAt: "2026-09-26T09:00:00.000Z", scoresPublishedAt: null });
 
     const req = call(0);
-    expect(req.url).toBe(`${BASE}/rest/v1/settings`);
-    expect(req.body).toEqual([
-      { id: 1, final_settled_at: "2026-09-26T09:00:00.000Z", scores_published_at: null },
-    ]);
+    expect(req.url).toBe(`${BASE}/rest/v1/settings?id=eq.1`);
+    expect(req.method).toBe("PATCH");
+    expect(req.body).toEqual({ final_settled_at: "2026-09-26T09:00:00.000Z", scores_published_at: null });
+  });
+
+  it("得点公開で最終精算日時を上書きしない", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await repo.updateSettings({ scoresPublishedAt: null });
+    expect(call(0).body).toEqual({ scores_published_at: null });
   });
 
   it("行が無ければ両方 null を返す", async () => {

@@ -41,15 +41,16 @@ export interface Market {
   status: MarketStatus;
   /** 確定着順（先頭が勝者）。settled のときのみ */
   resultOrder: string[] | null;
-  /** 三連単の全着順に適用する既定倍率。既存データは 336 倍として扱う */
+  /** 旧DBとの保存・競合照合用。実際の三連単は odds.ts の50倍固定 */
   trifectaOddsDefault?: number;
-  /** "1着>2着>3着" ごとの上書き倍率 */
+  /** 旧DBの個別倍率。互換性のため保持するが新しい払戻には使わない */
   trifectaOddsOverrides?: Record<string, number>;
 }
 
 export interface Bet {
   id: string;
   marketId: string;
+  /** カジノのユーザーID。既存データとの互換性のためフィールド名を維持する */
   studentId: string;
   kind: BetKind;
   /** win/place は [optionId]、trifecta は [1着, 2着, 3着] */
@@ -62,6 +63,7 @@ export interface Bet {
 
 /** 残高だけを持つ口座（計算ロジックはこの型で受け渡す） */
 export interface CasinoAccount {
+  /** カジノのユーザーID。DBの既存 student_id 列に保存し、名簿とは照合しない */
   studentId: string;
   pointsBalance: number;
   debtAmount: number;

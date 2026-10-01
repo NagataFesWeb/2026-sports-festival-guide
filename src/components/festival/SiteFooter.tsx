@@ -1,5 +1,6 @@
 // フッター。「79」だけが隠しボタン（HiddenDoor）で、ほかに裏画面への導線は置かない
 import { HiddenDoor } from "./HiddenDoor";
+import Link from "next/link";
 
 /** 黒地のフッター（トップ・ログイン・ランキング） */
 export function SiteFooter() {
@@ -10,7 +11,7 @@ export function SiteFooter() {
           NAGATA <HiddenDoor tone="dark" />TH ・ 2026
         </div>
         <div className="flex items-center gap-[14px]">
-          <span>実行委員会</span>
+          <Link href="/admin?tab=results" className="inline-flex min-h-11 items-center text-om-paper!">実行委員 管理・結果入力</Link>
           <span>・</span>
           <span>校内限定公開</span>
         </div>

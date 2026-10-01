@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Anton, Noto_Sans_JP, Share_Tech_Mono, Shippori_Mincho_B1 } from "next/font/google";
 import "./globals.css";
+import { SiteMotionControls } from "@/components/SiteMotion";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton", display: "swap" });
 // 表画面の日本語大見出し（モック v2「爆裂」）。日本語フォントは preload しない
@@ -35,9 +36,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ja"
+      suppressHydrationWarning
       className={`${anton.variable} ${shareTechMono.variable} ${notoSansJp.variable} ${shipporiMincho.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {/* 初回描画前に保存した演出設定をCSSへ渡し、ちらつきを防ぐ。 */}
+        <script dangerouslySetInnerHTML={{ __html: "try{var m=localStorage.getItem('nagata-motion');if(m==='full'||m==='reduced')document.documentElement.dataset.motion=m}catch(e){}" }} />
+        {children}
+        <SiteMotionControls />
+      </body>
     </html>
   );
 }

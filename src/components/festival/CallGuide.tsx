@@ -4,8 +4,12 @@
 // 区分で絞り込み、種目を押すとアコーディオンで招集の詳細と隊形図が開く
 import { useState } from "react";
 import type { Event, EventKind, Team } from "@/lib/festival/types";
-import { GroundOverview } from "@/components/ground-guide/GroundOverview";
-import { eventKey } from "@/lib/ground-guide/navigation";
+import dynamic from "next/dynamic";
+import { eventKey, guidePlan } from "@/lib/ground-guide/navigation";
+
+const GroundOverview = dynamic(() => import("@/components/ground-guide/GroundOverview").then(m => m.GroundOverview), {
+  loading: () => <p role="status">集合図を読み込み中…</p>,
+});
 
 /** 絞り込みチップの並びと EventKind の対応（モックの catList） */
 const CATEGORIES: { label: string; kind: EventKind | null }[] = [
@@ -23,8 +27,8 @@ const KIND_LABEL: Record<EventKind, string> = {
   club: "部活動",
 };
 
-const CELL = "min-w-0 border border-[rgba(17,17,17,.12)] bg-[#faf8f3] px-3 py-[10px]";
-const CELL_KEY = "text-[9.5px] font-black tracking-[0.18em] text-om-gray-3";
+const CELL = "min-w-0 border border-om-line bg-om-paper px-3 py-[10px]";
+const CELL_KEY = "text-[14px] font-bold text-om-gray-1";
 
 interface CallGuideProps {
   events: Event[];
@@ -49,9 +53,9 @@ export function CallGuide({ events, times, callTimes, myEventIds, teams, myTeamI
 
   return (
     <section className="min-w-0">
-      <h2 className="m-0 mb-1 font-om-mincho text-[clamp(20px,4vw,28px)] font-extrabold">種目別 招集案内</h2>
-      <div className="mb-3 text-[12px] text-om-gray-2">
-        区分で絞り込み、種目を押すと集合時間・持ち物と、競技全体の集合区分を3Dで確認できます。
+      <h2 className="m-0 mb-1 text-[20px] font-extrabold">競技から案内を探す</h2>
+      <div className="mb-3 text-[16px] text-om-gray-1">
+        競技を選ぶと、集合場所と競技の流れを確認できます。
       </div>
 
       <div className="mb-[10px] flex flex-wrap gap-[6px]">
@@ -148,11 +152,11 @@ export function CallGuide({ events, times, callTimes, myEventIds, teams, myTeamI
                           <div className="font-display text-[26px] leading-[1.1] text-om-pink">
                             {callTimes[event.id]}
                           </div>
-                          <div className="mt-[2px] text-[11px] text-om-gray-2">{event.gatherStart || "時刻どおり招集"}</div>
+                          <div className="mt-[2px] text-[16px] text-om-gray-1">{guideEvent ? guidePlan(guideEvent, 1, 1, 1).timing : event.gatherStart || "放送・招集係の指示で集合"}</div>
                         </>
                       ) : (
                         <div className="mt-1 text-[13px] leading-[1.6] font-black">
-                          {event.gatherStart || "時刻どおり招集"}
+                          {guideEvent ? guidePlan(guideEvent, 1, 1, 1).timing : event.gatherStart || "放送・招集係の指示で集合"}
                         </div>
                       )}
                     </div>

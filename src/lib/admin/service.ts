@@ -2,9 +2,9 @@
 // ポイント・オッズ・利子の計算は src/lib/casino/*、順位点は src/lib/festival/* の純粋関数に委譲する
 import { effectiveStatus } from "@/lib/casino/betting";
 import { finalizeAccount } from "@/lib/casino/debt";
-import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS, selectionKey } from "@/lib/casino/odds";
+import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS } from "@/lib/casino/odds";
 import { settleMarket } from "@/lib/casino/settle";
-import type { CasinoAccountRecord, Market, MarketOption, MarketStatus } from "@/lib/casino/types";
+import type { Market, MarketOption, MarketStatus } from "@/lib/casino/types";
 import { getRepository, type Repository } from "@/lib/db";
 import { parseInviteCsv, parseRosterCsv } from "@/lib/festival/csv";
 import { effectiveDeadline, resetDelays, shiftFrom } from "@/lib/festival/schedule";
@@ -13,6 +13,7 @@ import type {
   Event,
   EventCategory,
   EventEntry,
+  EventResult,
   EventKind,
   FormationType,
   Heat,
@@ -397,47 +398,6 @@ export async function updateMarketDeadline(
   return ok(next);
 }
 
-/** 三連単の倍率は締切まで編集可能。全組み合わせには既定倍率が適用される。 */
-export async function updateTrifectaOdds(
-  repo: Repository,
-  marketId: string,
-  input: { mode: "default" | "override" | "reset"; order?: string[]; odds?: number },
-  now = new Date(),
-): Promise<AdminResult<Market>> {
-  const market = await repo.getMarket(marketId);
-  if (!market) return fail("Market が見つかりません");
-  if (market.type !== "event" || market.category !== "race" || market.options.length < 3) {
-    return fail("三連単のある競技だけ倍率を変更できます");
-  }
-  const event = market.eventId ? await repo.getEvent(market.eventId) : null;
-  const deadline = effectiveDeadline(market, event);
-  if (effectiveStatus({ ...market, deadline }, now) !== "open") return fail("締切後の倍率は変更できません");
-
-  if (input.mode !== "reset") {
-    const odds = input.odds;
-    if (odds === undefined || !Number.isFinite(odds) || odds < 1 || odds > 1000 || Math.abs(Math.round(odds * 100) - odds * 100) > 1e-7) {
-      return fail("倍率は 1.00〜1000.00 の範囲で小数2桁まで入力してください");
-    }
-  }
-  let next: Market;
-  if (input.mode === "default") {
-    next = { ...market, trifectaOddsDefault: input.odds };
-  } else {
-    const order = input.order ?? [];
-    const ids = new Set(market.options.map((o) => o.id));
-    if (order.length !== 3 || new Set(order).size !== 3 || !order.every((id) => ids.has(id))) {
-      return fail("異なる3チームを1〜3着に選んでください");
-    }
-    const overrides = { ...market.trifectaOddsOverrides };
-    const key = selectionKey(order);
-    if (input.mode === "reset") delete overrides[key];
-    else overrides[key] = input.odds!;
-    next = { ...market, trifectaOddsOverrides: overrides };
-  }
-  await repo.upsertMarket(next);
-  return ok(next);
-}
-
 /** 締切を待たずに締め切る */
 export async function closeMarketNow(repo: Repository, marketId: string): Promise<AdminResult<Market>> {
   const market = await repo.getMarket(marketId);
@@ -498,30 +458,29 @@ export async function marketSummaries(repo: Repository, now: Date): Promise<Mark
 
 // ---- 結果確定 ----
 
-/** settleMarket の結果を「Market → 配当 → 口座」の順で保存する（順序を変えない） */
-async function persistSettlement(
-  repo: Repository,
-  market: Market,
-  order: readonly string[],
-  now: Date,
-): Promise<AdminResult<SettleSummary>> {
-  const [bets, accounts] = await Promise.all([repo.listBets({ marketId: market.id }), repo.listAccounts()]);
-  const settled = settleMarket({ market, bets, accounts, order: [...order], now });
-  if (!settled.ok) {
-    return fail(settled.error === "already_settled" ? "この Market は既に確定済みです" : "着順が Market の選択肢と一致しません");
+/** 配当・利子・競技結果を同じトランザクションで保存する */
+async function persistSettlement(repo: Repository, market: Market, order: readonly string[], now: Date, eventResult?: EventResult): Promise<AdminResult<SettleSummary>> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const [current, bets, accounts, settings] = await Promise.all([
+      repo.getMarket(market.id), repo.listBets({ marketId: market.id }), repo.listAccounts(), repo.getSettings(),
+    ]);
+    if (!current) return fail("Market が見つかりません");
+    if (settings.finalSettledAt) return fail("最終精算済みです");
+    if (current.status === "settled") return fail("この Market は既に確定済みです");
+    const settled = settleMarket({ market: current, bets, accounts, order: [...order], now });
+    if (!settled.ok) return fail(settled.error === "unsafe_balance" ? "ポイントが安全に計算できる範囲を超えています。保存せず停止しました" : "着順が Market の選択肢と一致しません");
+    if (!await repo.commitCasinoMutation({
+      expectedFinalSettledAt: null, expectedAccounts: accounts, allAccounts: true,
+      expectedMarkets: [current], expectedBets: bets, betScope: current.id,
+      market: settled.value.market, payouts: settled.value.payouts, accounts: settled.value.accounts, eventResult,
+    })) continue;
+    const before = new Map(accounts.map((a) => [a.studentId, a]));
+    return ok({ settled: true,
+      payoutTotal: settled.value.payouts.reduce((sum, p) => sum + p.payoutAmount, 0),
+      interestApplied: settled.value.accounts.filter((a) => a.debtAmount > (before.get(a.studentId)?.debtAmount ?? 0)).length,
+    });
   }
-
-  const before = new Map(accounts.map((a) => [a.studentId, a]));
-  await repo.upsertMarket(settled.value.market);
-  await repo.updateBetPayouts(settled.value.payouts);
-  await repo.updateAccounts(settled.value.accounts);
-
-  const payoutTotal = settled.value.payouts.reduce((sum, p) => sum + p.payoutAmount, 0);
-  const interestApplied = settled.value.accounts.filter((a: CasinoAccountRecord) => {
-    const prev = before.get(a.studentId);
-    return prev !== undefined && a.debtAmount > prev.debtAmount;
-  }).length;
-  return ok({ settled: true, payoutTotal, interestApplied });
+  return fail("同時操作と競合しました。結果を確認して再実行してください");
 }
 
 export interface EventResultInput {
@@ -594,17 +553,15 @@ export async function confirmEventResult(
   }
 
   const now = new Date();
-  await repo.upsertEventResult({
-    eventId,
-    heatId,
-    order,
-    points,
-    confirmedAt: now.toISOString(),
-  });
-
+  const result: EventResult = { eventId, heatId, order, points, confirmedAt: now.toISOString() };
   const market = (await repo.listMarkets()).find((m) => m.eventId === eventId && m.heatId === heatId);
-  if (!market || market.status === "settled") return ok(NOT_SETTLED);
-  return persistSettlement(repo, market, settlementOrder(order, market), now);
+  if (market?.status === "settled") {
+    const previous = await repo.getEventResult(eventId, heatId);
+    if (JSON.stringify(previous?.order) === JSON.stringify(order) && JSON.stringify(previous?.points) === JSON.stringify(points)) return ok(NOT_SETTLED);
+    return fail("配当確定済みの結果は変更できません。運営担当へ確認してください");
+  }
+  if (!market) { await repo.upsertEventResult(result); return ok(NOT_SETTLED); }
+  return persistSettlement(repo, market, settlementOrder(order, market), now, result);
 }
 
 /** 確定したヒートの結果を取り消す。Market が確定済みの場合は取り消せない */
@@ -658,14 +615,13 @@ export async function resetSchedule(repo: Repository): Promise<AdminResult<Sched
 export async function publishScores(repo: Repository): Promise<AdminResult<{ scoresPublishedAt: string }>> {
   const settings = await repo.getSettings();
   const scoresPublishedAt = settings.scoresPublishedAt ?? new Date().toISOString();
-  await repo.updateSettings({ ...settings, scoresPublishedAt });
+  await repo.updateSettings({ scoresPublishedAt });
   return ok({ scoresPublishedAt });
 }
 
 /** 得点・順位を非公開に戻す */
 export async function unpublishScores(repo: Repository): Promise<AdminResult<{ scoresPublishedAt: null }>> {
-  const settings = await repo.getSettings();
-  await repo.updateSettings({ ...settings, scoresPublishedAt: null });
+  await repo.updateSettings({ scoresPublishedAt: null });
   return ok({ scoresPublishedAt: null });
 }
 
@@ -734,6 +690,7 @@ export interface FinalSettlementSummary {
 }
 
 export interface SettlementPreview {
+  unsettledMarkets: number;
   /** 口座数 */
   accounts: number;
   /** 借金の合計 */
@@ -748,8 +705,9 @@ export interface SettlementPreview {
 
 /** 最終精算の前に見せる集計（UI では合計を計算しない） */
 export async function settlementPreview(repo: Repository): Promise<SettlementPreview> {
-  const [accounts, settings] = await Promise.all([repo.listAccounts(), repo.getSettings()]);
+  const [accounts, settings, markets] = await Promise.all([repo.listAccounts(), repo.getSettings(), repo.listMarkets()]);
   return {
+    unsettledMarkets: markets.filter((m) => m.status !== "settled").length,
     accounts: accounts.length,
     totalDebt: accounts.reduce((sum, a) => sum + a.debtAmount, 0),
     totalBalance: accounts.reduce((sum, a) => sum + a.pointsBalance, 0),
@@ -763,16 +721,17 @@ export async function settlementPreview(repo: Repository): Promise<SettlementPre
  * 冪等: 既に実行済みなら何も変えずに記録済みの時刻を返す
  */
 export async function runFinalSettlement(repo: Repository): Promise<AdminResult<FinalSettlementSummary>> {
-  const settings = await repo.getSettings();
-  const accounts = await repo.listAccounts();
-  if (settings.finalSettledAt) {
-    return ok({ finalSettledAt: settings.finalSettledAt, accounts: accounts.length, alreadySettled: true });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const [settings, accounts, markets] = await Promise.all([repo.getSettings(), repo.listAccounts(), repo.listMarkets()]);
+    if (settings.finalSettledAt) return ok({ finalSettledAt: settings.finalSettledAt, accounts: accounts.length, alreadySettled: true });
+    if (markets.some((m) => m.status !== "settled")) return fail("未確定のMarketが残っています。すべての結果を確定してから最終精算してください");
+    const finalSettledAt = new Date().toISOString();
+    if (await repo.commitCasinoMutation({
+      expectedFinalSettledAt: null, expectedAccounts: accounts, allAccounts: true,
+      expectedMarkets: markets, allMarkets: true, accounts: accounts.map(finalizeAccount), finalSettledAt,
+    })) return ok({ finalSettledAt, accounts: accounts.length, alreadySettled: false });
   }
-
-  await repo.updateAccounts(accounts.map(finalizeAccount));
-  const finalSettledAt = new Date().toISOString();
-  await repo.updateSettings({ ...settings, finalSettledAt });
-  return ok({ finalSettledAt, accounts: accounts.length, alreadySettled: false });
+  return fail("同時操作と競合しました。最終精算を再実行してください");
 }
 
 // ---- 既定の Repository を束ねた入口 ----
@@ -790,8 +749,6 @@ export function adminService() {
     createOverallMarket: (deadlineIso: string) => createOverallMarket(repo, deadlineIso),
     createCustomMarket: (input: CustomMarketInput) => createCustomMarket(repo, input),
     updateMarketDeadline: (marketId: string, deadlineIso: string) => updateMarketDeadline(repo, marketId, deadlineIso),
-    updateTrifectaOdds: (marketId: string, input: { mode: "default" | "override" | "reset"; order?: string[]; odds?: number }) =>
-      updateTrifectaOdds(repo, marketId, input),
     closeMarketNow: (marketId: string) => closeMarketNow(repo, marketId),
     reopenMarket: (marketId: string) => reopenMarket(repo, marketId),
     marketSummaries: (now: Date) => marketSummaries(repo, now),

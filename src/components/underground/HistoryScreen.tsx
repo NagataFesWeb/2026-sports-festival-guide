@@ -12,10 +12,12 @@ import { HardwareControls } from "./HardwareControls";
 import { Lcd } from "./Lcd";
 import { useSound } from "./sound";
 import { useServerClock } from "./useServerClock";
+import { useVisibleRefresh } from "./useVisibleRefresh";
 
 const STATUS_LABEL: Record<MarketStatus, string> = { open: "OPEN", closed: "TALLYING", settled: "SETTLED" };
 
 export function HistoryScreen({ view }: { view: HistoryView }) {
+  useVisibleRefresh();
   const router = useRouter();
   const { blip } = useSound();
   const now = useServerClock(view.serverNow);
@@ -25,7 +27,7 @@ export function HistoryScreen({ view }: { view: HistoryView }) {
       e.preventDefault();
       return;
     }
-    if (e.key === "Escape" || e.key === "Enter") {
+    if (e.key === "Escape" || (e.key === "Enter" && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLAnchorElement))) {
       e.preventDefault();
       router.push("/casino");
     }

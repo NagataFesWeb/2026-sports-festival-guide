@@ -1,9 +1,9 @@
 // 1つの Market の結果確定処理（純粋関数）。配当計算は odds.ts、利子は debt.ts に委譲する
-import { INTEREST_RATE } from "./debt";
+import { applyInterest } from "./debt";
 import { settlePayouts } from "./odds";
 import type { Bet, CasinoAccountRecord, Market } from "./types";
 
-export type SettleError = "already_settled" | "invalid_order";
+export type SettleError = "already_settled" | "invalid_order" | "unsafe_balance";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: SettleError };
 
@@ -50,7 +50,7 @@ export function settleMarket(input: SettleMarketInput): Result<SettleMarketOutpu
   if (!isValidOrder(market, order)) return { ok: false, error: "invalid_order" };
 
   const marketBets = bets.filter((b) => b.marketId === market.id);
-  const payoutMap = settlePayouts(marketBets, order, market);
+  const payoutMap = settlePayouts(marketBets, order);
 
   const payoutByStudent = new Map<string, number>();
   for (const b of marketBets) {
@@ -66,11 +66,12 @@ export function settleMarket(input: SettleMarketInput): Result<SettleMarketOutpu
     changedAccounts.push({
       ...account,
       pointsBalance: account.pointsBalance + received,
-      debtAmount: hasDebt ? Math.floor(account.debtAmount * INTEREST_RATE) : account.debtAmount,
+      debtAmount: hasDebt ? applyInterest(account).debtAmount : account.debtAmount,
     });
   }
 
   const payouts = marketBets.map((b) => ({ id: b.id, payoutAmount: payoutMap.get(b.id) ?? 0 }));
+  if (payouts.some((p) => !Number.isSafeInteger(p.payoutAmount)) || changedAccounts.some((a) => !Number.isSafeInteger(a.pointsBalance) || !Number.isSafeInteger(a.debtAmount))) return { ok: false, error: "unsafe_balance" };
 
   return {
     ok: true,

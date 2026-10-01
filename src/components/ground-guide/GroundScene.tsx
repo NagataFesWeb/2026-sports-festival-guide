@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useId } from "react";
-import { groundModel, modelGltf, MATERIAL, type Face, type Vec3 } from "@/lib/ground-guide/model";
+import { groundModel, MATERIAL, type Face, type Vec3 } from "@/lib/ground-guide/model";
 import { routeToAssembly, type AssemblyGroup, type EventKey, type Place, type Point } from "@/lib/ground-guide/navigation";
 import styles from "./guide.module.css";
 import type { ActorFrame } from "@/lib/ground-guide/playback";
@@ -17,10 +17,11 @@ function litColor(face: Face): string {
   return `rgb(${[1,3,5].map(i=>Math.round(parseInt(face.color.slice(i,i+2),16)*light)).join(",")})`;
 }
 
-export function GroundScene({ event, start, assembly, destination, stage = 1, groups = [], highlightedGroup, actors = [] }: {
+export function GroundScene({ event, start, assembly, destination, stage = 1, groups = [], highlightedGroup, actors = [], highlightedActorIds = [] }: {
   event: EventKey; start?: Place; assembly?: Place; destination?: Place; stage?: 1 | 2;
   groups?: AssemblyGroup[]; highlightedGroup?: string;
   actors?: ActorFrame[];
+  highlightedActorIds?: string[];
 }) {
   const [angle, setAngle] = useState(-12);
   const [top, setTop] = useState(false);
@@ -38,20 +39,18 @@ export function GroundScene({ event, start, assembly, destination, stage = 1, gr
   const hasRoute = start !== undefined && assembly !== undefined && destination !== undefined;
   const path = hasRoute ? (stage===1 ? routeToAssembly(start,assembly) : [assembly,destination]) : [];
   const pathData = path.map((p,i)=>{const q=point(p);return `${i?"L":"M"}${q.x},${q.y}`;}).join(" ");
-  function download() {
-    const url=URL.createObjectURL(new Blob([modelGltf(faces)],{type:"model/gltf+json"}));
-    const a=document.createElement("a");a.href=url;a.download=`nagata-ground-${event}.gltf`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }
   const labels: Place[]=[{x:0,z:55,label:"本部・保護者テント"},{x:0,z:-56,label:"2年 生徒席・バックストレート側"},{x:-81,z:0,label:"1年"},{x:81,z:0,label:"3年"}];
   return <div className={styles.sceneWrap}>
     <div className={styles.toolbar} aria-label="3Dモデルの表示操作">
       <button type="button" aria-pressed={!top} onClick={()=>setTop(false)}>立体</button>
       <button type="button" aria-pressed={top} onClick={()=>{setTop(true);setAngle(0);}}>真上</button>
+      <details className={styles.viewOptions}><summary>向き・大きさを調整</summary><div className={styles.toolbar}>
       <button type="button" aria-label="左に回転" onClick={()=>setAngle(a=>a-30)}>↶</button>
       <button type="button" aria-label="右に回転" onClick={()=>setAngle(a=>a+30)}>↷</button>
       <button type="button" aria-label="縮小" disabled={zoom<=.7} onClick={()=>setZoom(z=>Math.max(.7,z-.15))}>−</button>
       <button type="button" aria-label="拡大" disabled={zoom>=1.45} onClick={()=>setZoom(z=>Math.min(1.45,z+.15))}>＋</button>
       <button type="button" onClick={()=>{setAngle(-12);setZoom(1);setTop(false);}}>戻す</button>
+      </div></details>
     </div>
     <svg className={styles.scene} viewBox="0 0 900 600" role="img" aria-label={`${EVENT_LABEL(event)}の立体会場図。集合区分：${groups.map(g=>g.label).join("、")}。${hasRoute ? `${stage===1?start.label:assembly.label}から${stage===1?assembly.label:destination.label}への概略矢印。` : (actors.length ? `全${actors.length}区分の進行を表示。` : "競技全体の集合場所を表示。")}ドラッグで回転。`}
       onPointerDown={e=>{drag.current={x:e.clientX,angle};e.currentTarget.setPointerCapture(e.pointerId);}}
@@ -61,7 +60,7 @@ export function GroundScene({ event, start, assembly, destination, stage = 1, gr
       {faces.map((f,i)=>({f,i,p:f.vertices.map(project)})).sort((a,b)=>a.i===0?-1:b.i===0?1:a.p.reduce((s,p)=>s+p.depth,0)/a.p.length-b.p.reduce((s,p)=>s+p.depth,0)/b.p.length).map(({f,i,p})=><polygon key={i} points={p.map(q=>`${q.x},${q.y}`).join(" ")} fill={litColor(f)} stroke={litColor(f)} strokeWidth=".4"/>)}
       {labels.map(p=>{const q=point(p);return <text key={p.label} x={q.x} y={q.y} textAnchor="middle" className={styles.mapLabel}>{p.label}</text>;})}
       {actors.filter(a=>a.active).map(a=><polyline key={`route-${a.id}`} points={a.path.map(p=>{const q=point(p);return `${q.x},${q.y}`;}).join(" ")} fill="none" stroke={MATERIAL.blue} strokeOpacity=".3" strokeWidth="2"/>)}
-      {[...actors].sort((a,b)=>Number(a.active)-Number(b.active)).map(a=>{const q=point(a.position);return <g key={a.id}><title>{`${a.label}：${a.status}`}</title><circle cx={q.x} cy={q.y} r={a.active?6:4} fill={a.active?MATERIAL.pink:MATERIAL.paper} stroke={a.active?MATERIAL.ink:MATERIAL.blue} strokeWidth="1.5"/>{a.active&&(activeCount<=32||a.runner===1)&&<text x={q.x+7} y={q.y-7} className={styles.actorLabel}>{a.short}</text>}</g>;})}
+      {[...actors].sort((a,b)=>Number(a.active)-Number(b.active) || Number(highlightedActorIds.includes(a.id))-Number(highlightedActorIds.includes(b.id))).map(a=>{const q=point(a.position), own=highlightedActorIds.includes(a.id);return <g key={a.id} opacity={own||a.active?1:.45}><title>{`${own?"自分：":""}${a.label}：${a.status}`}</title><circle cx={q.x} cy={q.y} r={own?10:a.active?6:4} fill={own?MATERIAL.yellow:a.active?MATERIAL.pink:MATERIAL.paper} stroke={own||a.active?MATERIAL.ink:MATERIAL.blue} strokeWidth={own?3:1.5}/>{(own||a.active&&(activeCount<=32||a.runner===1))&&<text x={q.x+10} y={q.y-10} className={styles.actorLabel}>{own?"自分":a.short}</text>}</g>;})}
       {groups.map((group,index)=>{
         const own=group.id===highlightedGroup, color=own?MATERIAL.pink:MATERIAL.blue;
         const vertices: Point[]=[{x:group.x-group.width/2,z:group.z-group.depth/2},{x:group.x+group.width/2,z:group.z-group.depth/2},{x:group.x+group.width/2,z:group.z+group.depth/2},{x:group.x-group.width/2,z:group.z+group.depth/2}];
@@ -75,7 +74,7 @@ export function GroundScene({ event, start, assembly, destination, stage = 1, gr
       <path d={pathData} fill="none" stroke={stage===1?MATERIAL.blue:MATERIAL.pink} strokeWidth="6" strokeLinejoin="round" markerEnd={`url(#${arrowId})`}/>
       {(hasRoute ? (stage===1?[start,assembly]:[assembly,destination]) : []).map((p,i)=>{const q=point(p);return <g key={i}><circle cx={q.x} cy={q.y} r="13" fill={i?MATERIAL.pink:MATERIAL.blue} stroke={MATERIAL.paper} strokeWidth="3"/><text x={q.x} y={q.y+5} textAnchor="middle" fill={MATERIAL.paper} fontWeight="900" fontSize="15">{stage===1?i+1:i+2}</text></g>;})}
     </svg>
-    <div className={styles.sceneCaption}><span>ドラッグで回転 ／ 寸法・通路は概略</span><button type="button" onClick={download}>3Dモデル保存 ↓</button></div>
+    <div className={styles.sceneCaption}>本部は図の下側 ／ 配置・移動は概略</div>
   </div>;
 }
 function EVENT_LABEL(event: EventKey) { return event === "rope"?"大縄跳び":event === "horse"?"騎馬戦":"体育祭"; }

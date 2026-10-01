@@ -3,6 +3,7 @@
 // 紙吹雪は依存を増やさず Canvas 2D で液晶の内側に描く。3.4 秒で自動的に消え、タップ・キーでも閉じられる
 import { useEffect, useRef } from "react";
 import { useSound } from "../sound";
+import { isMotionReduced } from "@/components/SiteMotion";
 
 /** 表示時間（CSS の ug-winbg と一致させる） */
 const SHOW_MS = 3400;
@@ -84,7 +85,7 @@ export function WinFx({ amount, rate, race, pick, stake, onClose }: WinFxProps) 
   // 表示した瞬間に紙吹雪と上昇する 3 音を鳴らし、SHOW_MS 後に自分で閉じる
   useEffect(() => {
     const cv = cvRef.current;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = isMotionReduced();
     const stop = cv && !reduced ? runConfetti(cv) : () => {};
     blipRef.current(880, 0.18);
     const t1 = setTimeout(() => blipRef.current(1320, 0.22), 150);

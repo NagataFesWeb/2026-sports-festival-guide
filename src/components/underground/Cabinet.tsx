@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPoints } from "@/lib/casino/format";
 import { useSound } from "./sound";
+import { isMotionReduced } from "@/components/SiteMotion";
 
 export type LinkState = "online" | "busy" | "lost";
 
@@ -20,7 +21,7 @@ function useRollingCounter(value: number): number {
   useEffect(() => {
     const from = shownRef.current;
     if (from === value) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = isMotionReduced();
     const t0 = performance.now();
     let raf = 0;
     const step = (t: number) => {
@@ -63,7 +64,7 @@ export function Cabinet({
   return (
     <div className="ug-stage">
       <div className="ug-cabinet">
-        <div className="flex items-center justify-between gap-2.5 px-0.5 pb-2.5">
+        <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
           <div className="flex min-w-0 items-center gap-2">
             <Indicator label="PWR" tone="power" />
             <Indicator label="LINK" tone={link === "lost" ? "alert" : link === "busy" ? "ok" : "off"} />

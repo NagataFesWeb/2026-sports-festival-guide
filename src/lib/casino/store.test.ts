@@ -194,7 +194,7 @@ describe("borrowPoints / repayPoints", () => {
 });
 
 describe("registerAccount", () => {
-  it("名簿にある学籍番号は初期ポイント付きで登録できる", async () => {
+  it("ユーザーIDは初期ポイント付きで登録できる", async () => {
     const r = await registerAccount(NO_ACCOUNT, "himitsu123", "テスター");
     expect(r).toEqual({ ok: true });
     const account = await getRepository().getAccount(NO_ACCOUNT);
@@ -205,21 +205,48 @@ describe("registerAccount", () => {
     expect(account?.passwordHash).not.toContain("himitsu123");
   });
 
-  it("既に口座がある学籍番号は already_registered", async () => {
+  it("既に口座があるユーザーIDは already_registered", async () => {
     expect(await registerAccount(ME, "himitsu123", "テスター")).toEqual({ ok: false, error: "already_registered" });
   });
 
-  it("名簿に無い学籍番号は not_in_roster", async () => {
-    expect(await registerAccount("9999", "himitsu123", "テスター")).toEqual({ ok: false, error: "not_in_roster" });
+  it("名簿なしで英数字のID・パスワード・ニックネームを登録し、再ログインして利用できる", async () => {
+    await getRepository().replaceStudents([]);
+    const userId = "nagata-79_test";
+    expect(await registerAccount(userId, "himitsu123", "爆裂太郎")).toEqual({ ok: true });
+    expect(await authenticateAccount(userId, "himitsu123")).toEqual({ ok: true });
+    expect(await authenticateAccount(userId, "chigau456")).toEqual({ ok: false, error: "wrong_password" });
+    expect(await authenticateAccount("Nagata-79_test", "himitsu123")).toEqual({ ok: false, error: "wrong_password" });
+    expect(await registerAccount(userId, "another123", "別の人")).toEqual({ ok: false, error: "already_registered" });
+    expect((await getRepository().getAccount(userId))?.nickname).toBe("爆裂太郎");
+    const bet = await submitBet(OPEN, userId, { kind: "win", selection: ["t1"], amount: 100 }, now());
+    expect(bet.ok).toBe(true);
+    expect((await getRepository().getAccount(userId))?.pointsBalance).toBe(INITIAL_POINTS - 100);
+    expect((await getHistoryView(userId, now()))?.stakeTotal).toBe(100);
   });
 
-  it("パスワードが要件を満たさないときは invalid_password（名簿を見る前に弾く）", async () => {
+  it("同じユーザーIDの同時登録は一方だけ成功し、口座を上書きしない", async () => {
+    const results = await Promise.all([
+      registerAccount("new_user", "first123", "一人目"),
+      registerAccount("new_user", "second123", "二人目"),
+    ]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, error: "already_registered" }]);
+  });
+
+  it("不正なユーザーIDでは口座を作らない", async () => {
+    for (const userId of ["", "abc", "あいうえ", "a b c", "a.b.c", "a".repeat(33)]) {
+      expect(await registerAccount(userId, "himitsu123", "テスター")).toEqual({ ok: false, error: "invalid_user_id" });
+      expect(await getRepository().getAccount(userId)).toBeNull();
+    }
+  });
+
+  it("パスワードが要件を満たさないときは invalid_password", async () => {
     expect(await registerAccount(NO_ACCOUNT, "abc", "テスター")).toEqual({ ok: false, error: "invalid_password" });
     expect(await registerAccount("9999", "abc", "テスター")).toEqual({ ok: false, error: "invalid_password" });
     expect(await getRepository().getAccount(NO_ACCOUNT)).toBeNull();
   });
 
-  it("ニックネームが空・13文字なら invalid_nickname（名簿に無い番号でも同じエラー）", async () => {
+  it("ニックネームが空・13文字なら invalid_nickname", async () => {
     expect(await registerAccount(NO_ACCOUNT, "himitsu123", "")).toEqual({ ok: false, error: "invalid_nickname" });
     expect(await registerAccount(NO_ACCOUNT, "himitsu123", "あ".repeat(13))).toEqual({
       ok: false,
@@ -252,6 +279,26 @@ describe("authenticateAccount", () => {
 });
 
 describe("表示用データ", () => {
+  it("旧DBの三連単倍率が残っていても表示APIは50倍・個別設定なしを返す", async () => {
+    const repo = getRepository();
+    const stored = (await repo.getMarket(OPEN))!;
+    await repo.upsertMarket({ ...stored, trifectaOddsDefault: 336, trifectaOddsOverrides: { "t1>t2>t3": 12.34 } });
+    const view = await getMarketView(OPEN, ME, now());
+    expect(view?.market.trifectaOddsDefault).toBe(50);
+    expect(view?.market.trifectaOddsOverrides).toEqual({});
+    expect((await repo.getMarket(OPEN))?.trifectaOddsDefault).toBe(336);
+  });
+
+  it("確定済みの旧配当は新しい倍率で再計算せず履歴と残高を保持する", async () => {
+    const repo = getRepository();
+    const [ticket] = await repo.listBets({ marketId: SETTLED, studentId: ME });
+    await repo.updateBetPayouts([{ id: ticket.id, payoutAmount: 173 }]);
+    const view = await getMarketView(SETTLED, ME, now());
+    expect(view?.myBets.find((b) => b.id === ticket.id)?.payoutAmount).toBe(173);
+    const history = await getHistoryView(ME, now());
+    expect(history?.groups.find((g) => g.marketId === SETTLED)?.bets.find((b) => b.id === ticket.id)?.payoutAmount).toBe(173);
+    expect((await repo.getAccount(ME))?.pointsBalance).toBe(1240);
+  });
   it("getCreditView は上限・利率・返済上限を返す", async () => {
     const view = await getCreditView(ME, now());
     expect(view?.borrowMax).toBe(500);

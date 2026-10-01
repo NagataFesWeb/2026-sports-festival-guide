@@ -13,7 +13,7 @@ import {
 } from "../casino/fixtures";
 import type { Bet, CasinoAccountRecord, Market } from "../casino/types";
 import type { Event, EventResult, InviteEntry, Settings, Student, Team } from "../festival/types";
-import type { Balances, BetFilter, Repository } from "./repository";
+import type { Balances, BetFilter, CasinoMutation, Repository } from "./repository";
 
 interface MemoryState {
   students: Student[];
@@ -27,6 +27,7 @@ interface MemoryState {
   settings: Settings;
   /** newId の連番 */
   seq: number;
+  receipts?: string[];
 }
 
 // ---- JSON ファイル永続化（任意。失敗しても無視する） ----
@@ -169,10 +170,53 @@ function upsertBy<T>(list: T[], item: T, isSame: (existing: T) => boolean): void
 }
 
 export class MemoryRepository implements Repository {
+  async hasCasinoReceipt(key: string): Promise<boolean> {
+    return state().receipts?.includes(key) ?? false;
+  }
+
+  async commitCasinoMutation(c: CasinoMutation): Promise<boolean> {
+    const s = state();
+    if (c.requestKey && s.receipts?.includes(c.requestKey)) return true;
+    if (c.acceptBefore && Date.now() >= Date.parse(c.acceptBefore)) return false;
+    if (s.settings.finalSettledAt !== c.expectedFinalSettledAt) return false;
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    if (c.expectedAccounts.some((a) => !same(s.accounts.find((v) => v.studentId === a.studentId), a))) return false;
+    if (c.expectedMarkets?.some((m) => !same(s.markets.find((v) => v.id === m.id), m))) return false;
+    if (c.expectedEvents?.some((e) => !same(s.events.find((v) => v.id === e.id), e))) return false;
+    if (c.allAccounts && s.accounts.length !== c.expectedAccounts.length) return false;
+    if (c.allMarkets && s.markets.length !== c.expectedMarkets?.length) return false;
+    if (c.expectedBets?.some((b) => !same(s.bets.find((v) => v.id === b.id), b))) return false;
+    if (c.betScope && s.bets.filter((b) => b.marketId === c.betScope).length !== c.expectedBets?.length) return false;
+    if (c.insertBet && s.bets.some((b) => b.id === c.insertBet?.id)) return false;
+    if (c.insertAccount && s.accounts.some((a) => a.studentId === c.insertAccount?.studentId)) return false;
+    if (c.deleteBetId && !s.bets.some((b) => b.id === c.deleteBetId)) return false;
+    // await を挟まずコピー上で全件変更し、最後に一度だけ公開する。
+    const next = copy(s);
+    for (const a of c.accounts ?? []) upsertBy(next.accounts, copy(a), (v) => v.studentId === a.studentId);
+    if (c.insertAccount) next.accounts.push(copy(c.insertAccount));
+    if (c.insertBet) next.bets.push(copy(c.insertBet));
+    if (c.deleteBetId) next.bets = next.bets.filter((b) => b.id !== c.deleteBetId);
+    for (const p of c.payouts ?? []) {
+      const b = next.bets.find((v) => v.id === p.id);
+      if (!b) return false;
+      b.payoutAmount = p.payoutAmount;
+    }
+    if (c.market) upsertBy(next.markets, copy(c.market), (v) => v.id === c.market?.id);
+    if (c.eventResult) upsertBy(next.eventResults, copy(c.eventResult), (v) => resultKey(v.eventId, v.heatId) === resultKey(c.eventResult!.eventId, c.eventResult!.heatId));
+    if (c.finalSettledAt) next.settings.finalSettledAt = c.finalSettledAt;
+    if (c.requestKey) (next.receipts ??= []).push(c.requestKey);
+    holder.__dbMemoryState = next;
+    saveState(next);
+    return true;
+  }
   // ---- 生徒名簿 ----
 
   async listStudents(): Promise<Student[]> {
     return copy(state().students);
+  }
+
+  async countStudents(): Promise<number> {
+    return state().students.length;
   }
 
   async getStudent(studentId: string): Promise<Student | null> {
@@ -369,9 +413,9 @@ export class MemoryRepository implements Repository {
     return copy(state().settings);
   }
 
-  async updateSettings(settings: Settings): Promise<void> {
+  async updateSettings(settings: Partial<Settings>): Promise<void> {
     const s = state();
-    s.settings = copy(settings);
+    s.settings = { ...s.settings, ...copy(settings) };
     saveState(s);
   }
 

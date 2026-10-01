@@ -1,9 +1,12 @@
 // 表画面トップ（機能1・2・3の入口）。モック v2「爆裂」の isTop をそのまま移植したもの。
 // 裏画面への導線はフッターの「79」の連打だけ
 import { connection } from "next/server";
+import { cache, Suspense } from "react";
+import { HomeExperience } from "@/components/festival/HomeExperience";
 import { DeveloperPanel } from "@/components/underground/DeveloperPanel";
 import { AutoRefresh } from "@/components/festival/AutoRefresh";
-import { formatFestivalDate, formatHourMinute } from "@/components/festival/format";
+import { formatHourMinute } from "@/components/festival/format";
+import { FESTIVAL_DAY } from "@/lib/festival/festival-day";
 import { Hero } from "@/components/festival/Hero";
 import { IdSearchForm } from "@/components/festival/IdSearchForm";
 import { LoadingOverlay } from "@/components/festival/LoadingOverlay";
@@ -29,10 +32,57 @@ const TIMELINE_TIME: Record<string, string> = {
   upcoming: "rgba(245,242,233,.55)",
 };
 
-export default async function Home() {
-  // 得点・進行状況は毎リクエストで読み直す（ビルド時に固めない）
+const loadTopData = cache(async () => {
   await connection();
-  const { teams, events, results, statuses, starts, standings, counts } = await getTopPageData(new Date());
+  return getTopPageData(new Date());
+});
+
+// 見出し・入力欄はDBを待たず表示し、プログラムと得点を後から流す。
+export default function Home() {
+  return (
+    <HomeExperience><div className="om-page">
+      {process.env.NODE_ENV === "development" && <DeveloperPanel />}
+      <LoadingOverlay />
+      <Hero dateLabel={FESTIVAL_DAY.dateLabel} openLabel={<Suspense fallback={`${FESTIVAL_DAY.opening} 開会`}><OpeningLabel /></Suspense>} />
+      <section className="border-b-2 border-om-ink bg-om-paper px-[clamp(18px,5vw,60px)] py-6">
+        <div className="mx-auto grid max-w-[1080px] gap-3">
+          <h2 className="text-[20px] font-black">当日の集合を確認する</h2>
+          <p className="text-[16px] leading-relaxed">{FESTIVAL_DAY.arrival} 登校完了 ／ {FESTIVAL_DAY.gathering} グラウンド集合 ／ {FESTIVAL_DAY.rollCall} 点呼完了</p>
+          <IdSearchForm tone="page" buttonLabel="自分の案内を見る →" inputId="top-student-id"/>
+          <p className="text-[16px]">昼休み {FESTIVAL_DAY.lunch} ／ 閉会式 {FESTIVAL_DAY.closing}〜</p>
+        </div>
+      </section>
+
+      <Suspense fallback={<section aria-label="プログラム読み込み中" className="bg-om-paper px-6 py-12"><p role="status">プログラムを読み込み中…</p></section>}><TopContent /></Suspense>
+      {/* ---- CTA ---- */}
+      <section className="bg-om-pink px-[clamp(18px,5vw,60px)] py-[clamp(40px,7vw,80px)] text-white">
+        <div className="mx-auto flex max-w-[1080px] flex-wrap items-center justify-between gap-5">
+          <div className="min-w-0">
+            <div className="font-om-mincho text-[clamp(22px,4.4vw,36px)] font-extrabold">自分の招集案内を見る</div>
+            <div className="mt-[7px] text-[12.5px] opacity-85">
+              学籍番号を入力すると、集合のタイミングと行く場所が分かります。
+            </div>
+          </div>
+          <div className="w-full max-w-[360px] min-w-0">
+            <IdSearchForm tone="cta" buttonLabel="CHECK IT OUT →" />
+          </div>
+        </div>
+      </section>
+
+      <SiteFooter />
+      <AutoRefresh />
+    </div></HomeExperience>
+  );
+}
+
+async function OpeningLabel() {
+  const { events, starts } = await loadTopData();
+  return <>{(events[0] && formatHourMinute(starts[events[0].id])) || FESTIVAL_DAY.opening} 開会</>;
+}
+
+async function TopContent() {
+  // 得点・進行状況は毎リクエストで読み直す（ビルド時に固めない）
+  const { teams, events, results, statuses, starts, standings, counts } = await loadTopData();
 
   // 時刻の整形と着順の組み立てはサーバー側で済ませ、クライアントには文字列だけを渡す
   const times: Record<string, string | null> = {};
@@ -43,18 +93,12 @@ export default async function Home() {
   }
   const first = events.length > 0 ? times[events[0].id] : null;
   const last = events.length > 0 ? times[events[events.length - 1].id] : null;
-  const firstStart = events.find((event) => starts[event.id])?.startTime ?? null;
 
-  return (
-    <div className="om-page">
-      {process.env.NODE_ENV === "development" && <DeveloperPanel />}
-      <LoadingOverlay />
-      <Hero dateLabel={formatFestivalDate(firstStart) ?? "DATE TBA"} openLabel={first ? `${first} OPEN` : "TIME TBA"} />
-
+  return <>
       {/* ---- ABOUT ---- */}
       <section className="bg-om-paper px-[clamp(18px,5vw,60px)] py-[clamp(46px,8vw,96px)]">
         <div className="mx-auto grid max-w-[1080px] items-center gap-[clamp(22px,4vw,44px)] [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
-          <div className="min-w-0">
+          <div data-reveal="rise" className="min-w-0">
             <div className="font-display text-[12px] tracking-[0.34em] text-om-pink">ABOUT</div>
             <h2 className="mt-[10px] font-om-mincho text-[clamp(28px,5.4vw,46px)] leading-[1.25] font-extrabold">
               体育祭とは
@@ -121,7 +165,7 @@ export default async function Home() {
               ? teams.map((team) => (
                   <div
                     key={team.id}
-                    className="om-rise-l flex items-center gap-3 border border-[rgba(245,242,233,.14)] bg-[rgba(245,242,233,.03)] px-4 py-[14px]"
+                    data-reveal="left" className="flex items-center gap-3 border border-[rgba(245,242,233,.14)] bg-[rgba(245,242,233,.03)] px-4 py-[14px]"
                   >
                     <span aria-hidden="true" style={{ background: team.color }} className="size-[14px] flex-none" />
                     <span className="min-w-0 text-[14px] font-black">{team.name}</span>
@@ -171,7 +215,7 @@ export default async function Home() {
             {events.map((event) => {
               const status = statuses[event.id] ?? "upcoming";
               return (
-                <div key={event.id} className="grid grid-cols-[74px_24px_1fr] items-start gap-3">
+                <div data-reveal="rise" key={event.id} className="grid grid-cols-[74px_24px_1fr] items-start gap-3">
                   <div
                     style={{ color: TIMELINE_TIME[status] }}
                     className="pt-3 font-display text-[15px] tracking-[0.06em]"
@@ -203,23 +247,5 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ---- CTA ---- */}
-      <section className="bg-om-pink px-[clamp(18px,5vw,60px)] py-[clamp(40px,7vw,80px)] text-white">
-        <div className="mx-auto flex max-w-[1080px] flex-wrap items-center justify-between gap-5">
-          <div className="min-w-0">
-            <div className="font-om-mincho text-[clamp(22px,4.4vw,36px)] font-extrabold">自分の招集案内を見る</div>
-            <div className="mt-[7px] text-[12.5px] opacity-85">
-              学籍番号でログインすると集合時間と場所が出ます。走れ。
-            </div>
-          </div>
-          <div className="w-full max-w-[360px] min-w-0">
-            <IdSearchForm tone="cta" buttonLabel="CHECK IT OUT →" />
-          </div>
-        </div>
-      </section>
-
-      <SiteFooter />
-      <AutoRefresh />
-    </div>
-  );
+  </>;
 }

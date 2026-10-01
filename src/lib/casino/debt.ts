@@ -29,6 +29,7 @@ export function borrow(account: CasinoAccount, amount: unknown, finalized: boole
   if (finalized) return { ok: false, error: "finalized" };
   if (!isPositiveSafeInteger(amount)) return { ok: false, error: "invalid_amount" };
   if (amount > BORROW_MAX) return { ok: false, error: "over_borrow_limit" };
+  if (!Number.isSafeInteger(account.pointsBalance + amount) || !Number.isSafeInteger(account.debtAmount + amount)) return { ok: false, error: "invalid_amount" };
   return {
     ok: true,
     value: {
@@ -63,7 +64,7 @@ export function repay(account: CasinoAccount, amount: unknown, finalized: boolea
  */
 export function applyInterest(account: CasinoAccount): CasinoAccount {
   if (account.debtAmount <= 0) return account;
-  return { ...account, debtAmount: Math.floor(account.debtAmount * INTEREST_RATE) };
+  return { ...account, debtAmount: Number(BigInt(account.debtAmount) * BigInt(110) / BigInt(100)) };
 }
 
 /**

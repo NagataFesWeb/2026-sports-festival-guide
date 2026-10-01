@@ -14,9 +14,36 @@ export interface BetFilter {
   studentId?: string;
 }
 
+/** 検証したスナップショットと変更を一つのトランザクションで保存する */
+export interface CasinoMutation {
+  expectedFinalSettledAt: string | null;
+  expectedAccounts: readonly CasinoAccountRecord[];
+  expectedMarkets?: readonly Market[];
+  expectedEvents?: readonly Event[];
+  expectedBets?: readonly Bet[];
+  betScope?: string;
+  allAccounts?: boolean;
+  allMarkets?: boolean;
+  accounts?: readonly CasinoAccountRecord[];
+  insertAccount?: CasinoAccountRecord;
+  insertBet?: Bet;
+  deleteBetId?: string;
+  payouts?: readonly { id: string; payoutAmount: number }[];
+  market?: Market;
+  eventResult?: EventResult;
+  finalSettledAt?: string;
+  requestKey?: string;
+  acceptBefore?: string;
+}
+
 export interface Repository {
+  /** 競合なら何も書かず false。例外でも全変更がロールバックされる */
+  commitCasinoMutation(change: CasinoMutation): Promise<boolean>;
+  hasCasinoReceipt(requestKey: string): Promise<boolean>;
   // ---- 生徒名簿 ----
   listStudents(): Promise<Student[]>;
+  /** トップの人数表示用。名簿全件を転送しない */
+  countStudents(): Promise<number>;
   getStudent(studentId: string): Promise<Student | null>;
   /** 名簿を丸ごと差し替える（CSV アップロード） */
   replaceStudents(students: readonly Student[]): Promise<void>;
@@ -59,7 +86,7 @@ export interface Repository {
   // ---- カジノ: 口座 ----
   listAccounts(): Promise<CasinoAccountRecord[]>;
   getAccount(studentId: string): Promise<CasinoAccountRecord | null>;
-  /** 既に同じ学籍番号の口座があれば false を返して何もしない */
+  /** 既に同じユーザーIDの口座があれば false を返して何もしない */
   insertAccount(account: CasinoAccountRecord): Promise<boolean>;
   /**
    * 残高・借金を compare-and-set で更新する。
@@ -71,7 +98,7 @@ export interface Repository {
 
   // ---- 設定 ----
   getSettings(): Promise<Settings>;
-  updateSettings(settings: Settings): Promise<void>;
+  updateSettings(settings: Partial<Settings>): Promise<void>;
 
   /** 一意な ID を発行する（メモリ実装は連番、Supabase は UUID） */
   newId(prefix: string): string;

@@ -24,6 +24,7 @@
 | 効果音 | Howler.js |
 
 > 導入済みは Next.js・TypeScript・Tailwind CSS・Vitest のみ。shadcn/ui・Framer Motion・GSAP・Lottie・canvas-confetti・Howler.js・`@supabase/supabase-js` は未導入（演出は CSS keyframes と WebAudio、Supabase は PostgREST を `fetch` で直接呼ぶ `src/lib/db/supabase.ts`）。必要になった時点で相談して追加する。
+> Supabase CLI 2.119.0はDB管理用の開発依存として導入済み。Next.jsとeslint-config-nextは16.3.8に合わせている。
 >
 > テーマは表画面「爆裂」（`docs/mockup/` のモック v2 が出典）と裏画面（カジノ）「古い賭博端末」で完全に切り替える。トークンは `docs/DESIGN.festival.md`（表）と `docs/DESIGN.underground.md`（裏）に固定済み。UI を触るときは先にこれを読み、表画面はモックの CSS を正として独自のアレンジを加えない。
 >
@@ -39,9 +40,13 @@ npm test        # テスト
 npm run lint    # Lint・型（next typegen → eslint → tsc --noEmit）
 npm run build   # ビルド
 npm run entries # 出場競技表（data/学籍番号別出場競技.csv）から静的データを生成。dev・build・test・lint の前に自動実行
+npm run db:login # Supabase CLIのブラウザ認証（初回のみ）
+npm run db:check # 接続先DBの準備確認（読み取りのみ）
+npm run db:sql -- supabase/casino-status.sql # SQLファイル実行
+npm run db:apply-casino # 原子的保存SQL→空DBの当日設定→準備確認
 ```
 
-> 6つとも package.json に実装済みで動作確認済み。スクリプトを変えたらここも直し、動くコマンドだけを残すこと。動かないコマンドを書くと未検証のまま完了宣言される。
+> package.json に実装済み。アプリ用6コマンドとCLI認証・接続・SQL実行・カジノSQL適用を確認済み。CLIは開発依存、接続先は `.env.local` から取得する。スクリプトを変えたらここも直し、動くコマンドだけを残すこと。動かないコマンドを書くと未検証のまま完了宣言される。
 > テストは Vitest（`src/**/*.test.ts`、設定は `vitest.config.ts`。`@/` エイリアスが使え、`DB_PERSIST=0` でメモリ DB をファイルに書かない）。Next.js は 16 系で API が変わっているため、コードを書く前に `node_modules/next/dist/docs/` の該当ガイドを読むこと（末尾の nextjs-agent-rules は `next dev` が自動で追記する）。
 >
 > 画面の目視確認は Chrome 拡張が無くてもできる: `chrome.exe --headless=new --remote-debugging-port` を起動し、DevTools Protocol で `Emulation.setDeviceMetricsOverride`（390px 幅）と `Network.setCookie`（`casino_session` / `admin_session`）を使って撮影する。`--window-size` だけでは Chrome の最小幅で狭幅の確認ができない。

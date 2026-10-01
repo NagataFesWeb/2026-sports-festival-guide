@@ -66,6 +66,7 @@ export function ProgramSection({ events, statuses, times, teams, heatResults }: 
             const style = STATUS_STYLE[statuses[event.id] ?? "upcoming"];
             return (
               <button
+                data-reveal="rise"
                 key={event.id}
                 type="button"
                 ref={(element) => {

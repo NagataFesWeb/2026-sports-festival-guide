@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRepository } from "@/lib/db";
 import { resetMemoryState } from "@/lib/db/memory";
 import {
@@ -37,6 +37,21 @@ describe("normalizeStudentId", () => {
 describe("getTopPageData（仮データ）", () => {
   beforeEach(() => {
     resetMemoryState();
+  });
+
+  it("トップの人数表示は件数だけ取得し、生徒名簿を全行読み込まない", async () => {
+    const repository = getRepository();
+    const count = vi.spyOn(repository, "countStudents").mockResolvedValue(946);
+    const roster = vi.spyOn(repository, "listStudents").mockRejectedValue(new Error("名簿全行の取得は不要"));
+    try {
+      const data = await getTopPageData(new Date());
+      expect(data.counts.players).toBe(946);
+      expect(count).toHaveBeenCalledOnce();
+      expect(roster).not.toHaveBeenCalled();
+    } finally {
+      count.mockRestore();
+      roster.mockRestore();
+    }
   });
 
   it("チーム 8 件・プログラム 12 件を番組順で返す", async () => {

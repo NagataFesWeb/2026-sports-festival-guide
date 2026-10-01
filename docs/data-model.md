@@ -1,10 +1,11 @@
 # データモデル
 
+トップの人数表示はRepositoryの `countStudents()` を使用する。メモリ実装は配列の件数、Supabase実装はHEADリクエスト（`Prefer: count=exact`、`Range: 0-0`）のContent-Rangeを読む。人数表示のために名簿全行を転送しない。
+
 ```mermaid
 erDiagram
-    STUDENT ||--o| CASINO_ACCOUNT : has
     STUDENT ||--o{ INVITE_ENTRY : has
-    STUDENT ||--o{ BET : places
+    CASINO_ACCOUNT ||--o{ BET : places
     EVENT ||--o{ HEAT : "1つ以上"
     HEAT ||--o| MARKET : has
     HEAT ||--o| EVENT_RESULT : has
@@ -19,7 +20,7 @@ erDiagram
         int class_no "組 1〜8（＝チーム）。不明は null"
     }
     CASINO_ACCOUNT {
-        string student_id PK "学籍番号（STUDENT に存在する番号のみ）"
+        string student_id PK "ユーザーID。互換性のため列名を維持。名簿とは無関係"
         string password_hash "scrypt"
         string nickname "順位表示用。1〜12文字。旧口座は空文字"
         int points_balance "所持ポイント（借金額とは別管理）"
@@ -97,7 +98,7 @@ erDiagram
     BET {
         string id PK
         string market_id FK
-        string student_id FK
+        string student_id FK "カジノのユーザーID"
         string kind "win | place | trifecta"
         json selection "win/place は [対象]、trifecta は [1着,2着,3着]"
         int amount
@@ -117,8 +118,8 @@ erDiagram
 
 | エンティティ | 説明 |
 |---|---|
-| Student | 学籍番号がID。カジノ口座の作成可否（名簿にある番号か）とランキングの氏名表示に使う。**表側では認証に使わない**（表側の学籍番号入力は招集案内の検索キー。`/me` の氏名表示にだけ参照する） |
-| CasinoAccount | カジノ入場用のパスワード（scrypt ハッシュ）とポイント残高を保持。`points_balance`（所持ポイント）と `debt_amount`（借金額）は別々に管理する。入場後は署名付き Cookie セッションに `student_id` を持ち、Route Handler はそこから本人を特定する。最終精算時に精算前の値を `final_balance_before` / `final_debt` に保存する（ランキング併記用） |
+| Student | 学籍番号がID。表側の招集案内検索と `/me` の氏名表示に使う。認証に使わず、カジノ口座とも結び付けない |
+| CasinoAccount | 任意のユーザーID・パスワード（scrypt ハッシュ）・必須ニックネームを保持。ポイントと借金は別々に管理する。入場APIの入力は `userId`、署名付き Cookie の主体もユーザーID。互換性のためドメインの `studentId` とDB列 `student_id` は維持するが、値はカジノのユーザーIDで名簿照合はしない。既存口座とベットはそのまま使える。最終精算時に精算前の値を `final_balance_before` / `final_debt` に保存する |
 | Team / Event / EventEntry | 8 チーム（＝組）と種目。`entries` が組み合わせ（レーン→チーム）、`rank_points` が順位点（種目ごと。R8 演技台帳の配点）。`kind` は表示上の区分、`category` は賭式の区分 |
 | Heat | 種目の中で独立に着順が決まる単位。リレー類は学年別（1年/2年/3年）、それ以外は「総合」1 つ。結果・Market はヒート単位 |
 | EventResult | ヒートの確定結果。実行委員は**着順**を入力し、得点は `rank_points` から自動計算（上書き可）。`rank_points` が空の種目（玉入れ・棒引き）は得点を直接入力し、着順は得点順に導く。得点板は全ヒートの `points` の合計。確定と同時に対応する Market を settled にする |
@@ -143,7 +144,9 @@ erDiagram
 
 `src/lib/ground-guide/navigation.ts` の `GuidePlan` は `assembly`（集合）・`destination`（競技位置）・補足・招集タイミングを持つ。座標は `Point { x, z }` の模式座標で、実測メートルではない。競技・学年・組・走順・試合から演技台帳の配置を求める。`AssemblyGroup` は識別子・対象ラベル・補足と模式座標の範囲（幅・奥行き）を持つ。`assemblyGroups()` の全体区分と `personalGroupId()` の個人区分を両画面で共有する。`classSeat()` は追加配置図の学年・組から外周円弧上の生徒席を求め、初期出発地点に使う。経路はトラック横断可の直接線。3D面・頂点・素材は `model.ts` で生成しglTFにも出力する。
 
-`Calibration` は本部前と生徒席側の2つの緯度・経度。GPS・較正値は画面内メモリだけで保持し、DB・localStorage・サーバーに保存しない。位置合わせ前は現在地をモデルに投影しない。詳細・原資料の個人情報を除いた要約は [ground-guide/README.md](ground-guide/README.md)。
+GPS・較正・モデル保存のUIは2026-10-01に除去。座標変換とglTF生成の純粋関数は既存の自動検証用に保持する。詳細は [ground-guide/README.md](ground-guide/README.md)。
+
+`festival-day.ts` は確認済み開催日と台帳の固定時刻。`ledger.ts` の `AgendaItem` は競技キー・競技名・出場枠・集合タイミング/場所・開始予定・持ち物・補足・全員参加区分・順序を持つ。`personalAgenda()` が出場表、全員参加、対象学年の全員競技、個人招集CSVを統合する。個人CSVの値を優先し、空欄は台帳から補う。時計時刻を所要時間から推測せず、開始見込みは既存のサーバー計算結果を使う。DBスキーマは変更しない。
 
 ### 進行の遅延・前倒し
 - 種目の `start_time` は定刻で固定し、実際の開始見込みは `start_time + delay_min 分` で求める（`src/lib/festival/schedule.ts`）
@@ -151,14 +154,18 @@ erDiagram
 - 種目に紐づく Market の締切も `deadline + delay_min 分` を実際の締切として扱う（ベット受付の判定もこの値）
 
 ### 同時更新の扱い
-ポイントの増減（ベット・取消・借入・返済）は Route Handler が純粋関数で新しい残高を計算し、`Repository.updateBalances(studentId, expected, next)` で**現在値が期待値と一致するときだけ**書き込む（compare-and-set）。一致しなければ読み直して最大 3 回やり直す。結果確定・利子・最終精算は実行委員だけが行う単発操作なので、複数行の更新をまとめて書く。
+登録・ベット・取消・借入返済・配当と利子・最終精算は `Repository.commitCasinoMutation()` で期待値の照合と全変更を一度に保存する。競合なら何も保存せず、読み直して最大3回試す。保存例外でも全変更を戻す。ベットの締切、Market・種目の遅延、口座、対象ベット、最終精算日時を照合する。配当と最終精算は口座の追加・Marketの追加も検出する。
+
+Supabaseは `supabase/casino-atomic.sql` のサーバー専用RPCを使う。残高・借金・賭け金・配当の列はbigint。アプリ側は安全な整数の範囲を検証する。`casino_receipts(request_key, created_at)` は成功したベット・借入返済の再送識別子を記録し、同じ口座・操作・識別子の再送を二重処理しない。RLSとRPCの実行権限によりクライアントから直接変更できない。
+
+全Market確定前の最終精算は拒否する。精算後は新規口座・ベット・取消・借入返済を停止する。確定済みの競技結果は同じ値の再送だけを許し、変更は拒否する。当日設定とSQL適用は [casino-operations.md](casino-operations.md)。
 
 ### 認証の系統（3つは互いに独立）
 
 | 系統 | 対象 | 方式 |
 |---|---|---|
 | 表側 | `/login` → `/me` | 認証なし。学籍番号は検索キーで、セッションもパスワードも持たない |
-| カジノ | `/casino/enter` → `/casino` 配下・`/api/casino/*` | 学籍番号＋パスワード（`CASINO_ACCOUNT.password_hash`）。署名付き Cookie セッション |
+| カジノ | `/casino/enter` → `/casino` 配下・`/api/casino/*` | ユーザーID＋パスワード（`CASINO_ACCOUNT.password_hash`）。登録時はニックネーム必須。署名付き Cookie セッション |
 | 実行委員 | `/admin/login` → `/admin` | Supabase Auth（メール＋パスワード） |
 | Market | ベットの対象（全体優勝 / 種目ごと / custom の二択）。締切(`deadline`)を過ぎると `closed`、実行委員が結果確定すると `settled`。対象は TEAM（8チーム）、custom のみ MARKET_OPTION |
 | Bet | 1人が1つのMarketに複数回賭けることも許可（同じ対象への追加賭けも、別対象・別賭式への分散賭けも可）。`selection` は TEAM.id または MARKET_OPTION.id |
@@ -173,18 +180,19 @@ erDiagram
 
 ## ポイント・オッズ計算ロジック
 
-実装は `src/lib/casino/odds.ts`、テストは `payout.test.ts`。単勝・複勝は**賭式ごとに独立したプール**を持ち、控除率は 0%。三連単は全ての異なる3チームの着順に既定倍率 336.00 倍を適用し、実行委員が締切前に組み合わせ別の倍率を上書きできる。三連単の払戻には締切時点の保存倍率を使う。ベット時点では倍率は確定しない。
+実装は `src/lib/casino/odds.ts`、テストは `payout.test.ts`。単勝・複勝は賭式ごとの独立プールを使い、**的中時は最低5倍**。三連単は全組み合わせ**50倍固定**で、参加人数・賭け金プール・旧DBの個別倍率に左右されない。プールで不足する払戻ポイントはシステムが補填する（サイト内専用ポイント）。
 
 | 賭式 | 見込み倍率（締切前・随時更新） | 配当（結果確定時） |
 |---|---|---|
-| 単勝 | `単勝プール合計 ÷ その対象への単勝賭け金` | 1着の対象に賭けた人でプール全額を賭け金比で按分 |
-| 複勝 | `複勝プール合計 ÷ 3 ÷ その対象への複勝賭け金` | 3着以内の対象のうち**賭けがある対象の数**でプールを等分し、各対象に賭けた人で按分 |
-| 三連単 | 組み合わせ別の設定倍率。未設定なら全組み合わせの既定倍率 | 1〜3着の着順まで一致したベットに `floor(賭け金 × 締切時点の設定倍率)` |
+| 単勝 | `max(5, 単勝プール合計 ÷ 対象への単勝賭け金)` | 1着への的中ベットに `floor(賭け金 × max(5, プール合計 ÷ 的中対象の賭け金))` |
+| 複勝 | `max(5, 複勝プール合計 ÷ 3 ÷ 対象への複勝賭け金)` | 3着以内の対象のうち賭けがある対象でプールを等分し、対象ごとの倍率を最低5倍にして `floor(賭け金 × 倍率)` |
+| 三連単 | 50.00倍 | 1〜3着の着順まで一致したベットに `賭け金 × 50` |
 
-- **賭けが無い対象**: 単勝・複勝は倍率を計算せず `―` と表示する。三連単は賭けが無くても設定倍率を表示する
-- **見込み払戻**: `floor(賭け金 × 表示倍率)`。単勝・複勝は他の生徒のベット、三連単は実行委員の締切前の変更で変動する
-- **端数**: 倍率表示は小数2桁に切り捨て。配当は各ベットごとに `floor`
-- **外れた場合**: 賭けたポイントはそのまま没収（0が返る）。単勝・複勝で的中ベットが1件も無い場合はプールも没収
+- **賭けが無い対象**: 単勝・複勝は5.00倍、三連単は50.00倍を表示する。
+- **見込み払戻**: `floor(賭け金 × 計算倍率)`。単勝・複勝で5倍を超える倍率は他のベットで変動する。三連単は変動しない。
+- **端数**: 倍率表示は小数2桁に切り捨て。配当は各ベットごとに `floor`。
+- **外れた場合**: 賭けたポイントは没収（払戻0）。
+- **既存DBとの互換性**: `trifectaOddsDefault` / `trifectaOddsOverrides` は保存時の競合照合のため保持する。新しい計算では使わず、表示APIは50と空の個別設定を返す。確定済みの `payoutAmount` は再計算しない。管理画面に倍率変更フォームは設けない。
 
 ## ベット・取消の検証（サーバー側）
 
@@ -210,8 +218,8 @@ erDiagram
 実装は `src/lib/casino/settlement.ts`（`rankAccounts`）、テストは `settlement.test.ts`。
 
 - 最終精算後の `points_balance` をそのまま**純資産**として扱う（`debt_amount` は精算により0のため、実質 `points_balance - debt_amount` と同義）
-- `/ranking` では純資産の降順で個人を並べ、あわせて精算前の `final_balance_before`（所持ポイント）と `final_debt`（借金額）も表示する。同点は同順位（1, 1, 3 方式）、同点内は学籍番号順
-- 表示名（`displayName`）は口座の `nickname`。空（ニックネーム導入前の旧口座）なら名簿の氏名、名簿にも無い学籍番号は学籍番号をそのまま出す。名簿の氏名（`name`）は行に持つが、`/ranking`・F4 RANK には表示しない
+- `/ranking` では純資産の降順で個人を並べ、あわせて精算前の `final_balance_before`（所持ポイント）と `final_debt`（借金額）も表示する。同点は同順位（1, 1, 3 方式）、同点内はユーザーID順
+- 表示名（`displayName` / `name`）は口座の `nickname`。空（ニックネーム導入前の旧口座）ならユーザーIDを表示する。生徒名簿との照合は行わない
 
 ## 得点板（表画面）ロジック
 
@@ -226,3 +234,5 @@ erDiagram
 `src/lib/ground-guide/playback.ts` の `Actor`（学年・組・走順または部別区分、集合点と戻り先）、`Phase`（説明、短縮再生秒数、全区分の経路）を純粋関数で生成する。`playbackFrame()` は任意時刻を経路長で補間し、区分数と識別子を保持する。DB・名簿・GPSは参照しない。
 
 個人別CSVと `entries.data.ts` はローカル限定。CSVがなければ空の辞書を生成する。テストでは実在の出場割当を固定せず、存在するCSVとの一致を検証する。
+
+得点公開・非公開は `scores_published_at` だけを更新し、同時に完了した最終精算日時を古い値に戻さない。

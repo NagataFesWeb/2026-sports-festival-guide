@@ -77,7 +77,7 @@ export default async function RankingPage() {
                 <div className="min-w-0">
                   <div className="text-[14px] font-black break-words">
                     {row.displayName}
-                    <span className="ml-[7px] font-display text-[11px] font-bold text-om-gray-3">
+                    <span className="ml-[7px] break-all font-display text-[11px] font-bold text-om-gray-3">
                       {row.studentId}
                     </span>
                   </div>

@@ -10,10 +10,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "npm run entries && next typegen && eslint && tsc --noEmit",
-    "test": "npm run entries && vitest run"
+    "test": "npm run entries && vitest run",
+    "db:login": "supabase login",
+    "db:check": "node scripts/supabase-sql.mjs check",
+    "db:sql": "node scripts/supabase-sql.mjs sql",
+    "db:apply-casino": "node scripts/supabase-sql.mjs apply-casino"
   },
   "dependencies": {
-    "next": "16.3.4",
+    "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -23,7 +27,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.3.8",
+    "supabase": "2.119.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.0"

@@ -1,0 +1,31 @@
+.agenda { --agenda-space: 16px; --agenda-wide: 24px; --agenda-border: 2px solid var(--color-om-ink); min-width: 0; }
+.intro { margin-bottom: var(--agenda-wide); }
+.intro h1 { font-family: var(--font-om-mincho); font-size: clamp(26px,5vw,36px); font-weight: 800; margin: 0 0 8px; }
+.intro p { font-size: 16px; line-height: 1.8; margin: 0; }
+.intro .day { margin-top: var(--agenda-space); font-weight: 900; }
+.morning { display: flex; flex-wrap: wrap; gap: 8px var(--agenda-space); margin-top: 8px; font-size: 14px; }
+.notice { border: var(--agenda-border); padding: var(--agenda-space); font-size: 16px; line-height: 1.8; }
+.update { color: var(--color-om-gray-1); font-size: 14px; }
+.list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--agenda-space); }
+.card { min-width: 0; padding: var(--agenda-space); border: var(--agenda-border); border-left: 6px solid var(--color-om-yellow); background: var(--color-om-paper); }
+.card[data-common="true"] { border-left-color: var(--color-om-ink); }
+.cardHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.cardHeading h2 { margin: 0; font-size: 20px; line-height: 1.5; overflow-wrap: anywhere; }
+.slot { padding: 4px 8px; background: var(--color-om-ink); color: var(--color-om-paper); font-size: 14px; font-weight: 800; }
+.card[data-common="true"] .slot { background: var(--color-om-line); color: var(--color-om-ink); }
+.facts { display: grid; gap: var(--agenda-space); margin: var(--agenda-space) 0; }
+.facts dt { font-size: 14px; color: var(--color-om-gray-1); margin-bottom: 4px; }
+.facts dd { font-size: 18px; font-weight: 800; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+.facts .gather { font-size: clamp(20px,3vw,26px); }
+.start { color: var(--color-om-gray-1); font-size: 14px; margin: 0 0 8px; }
+.note { font-size: 16px; line-height: 1.8; margin: 8px 0 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--agenda-space); }
+.actions button { min-height: 44px; min-width: 44px; padding: 8px 12px; border: var(--agenda-border); background: var(--color-om-paper); color: var(--color-om-ink); font-size: 16px; font-weight: 800; cursor: pointer; }
+.actions .primary { background: var(--color-om-yellow); }
+.actions button:hover { background: var(--color-om-line); }
+.actions button[aria-expanded="true"] { background: var(--color-om-ink); color: var(--color-om-paper); }
+.actions button:active { transform: translateY(1px); }
+.expanded { border-top: var(--agenda-border); margin-top: var(--agenda-space); padding-top: var(--agenda-space); }
+.lunch { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--agenda-space) 0 var(--agenda-wide); font-size: 16px; }
+.lunch strong { font-family: var(--font-display); font-size: 24px; }
+@media(min-width:650px) { .card { padding: var(--agenda-wide); } .facts { grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); } }

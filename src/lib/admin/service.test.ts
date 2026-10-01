@@ -1,6 +1,6 @@
 // 実行委員の管理操作のテスト。メモリ実装のシードデータ（src/lib/casino/fixtures.ts）を前提にする。
 // ヒートを持たない種目や独自の組み合わせが必要なテストは、その場で種目を作って使う
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FIXTURE_STUDENT_ID } from "@/lib/casino/fixtures";
 import { MemoryRepository, resetMemoryState } from "@/lib/db/memory";
 import type { Event, Heat } from "@/lib/festival/types";
@@ -28,7 +28,6 @@ import {
   toIsoDeadline,
   unpublishScores,
   updateMarketDeadline,
-  updateTrifectaOdds,
 } from "./service";
 
 let repo: MemoryRepository;
@@ -330,22 +329,12 @@ describe("全体優勝・custom Market の確定", () => {
 });
 
 describe("Market の作成・締切", () => {
-  it("三連単の全組み合わせに既定倍率を適用し、個別補正と解除を締切まで許可する", async () => {
-    const created = await createEventMarket(repo, "ev-05", "g3", "2026-10-01T10:00");
+  it("三連単は50倍固定・個別倍率なしでMarketを作成する", async () => {
+    const created = await createEventMarket(repo, "ev-05", "g3", "2026-10-02T10:00");
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    const id = created.value.id;
-    const now = new Date("2026-09-30T00:00:00Z");
-    expect(created.value.trifectaOddsDefault).toBe(336);
-    expect((await updateTrifectaOdds(repo, id, { mode: "default", odds: 250.5 }, now)).ok).toBe(true);
-    expect((await updateTrifectaOdds(repo, id, { mode: "override", order: ["t1", "t2", "t3"], odds: 12.34 }, now)).ok).toBe(true);
-    expect((await repo.getMarket(id))?.trifectaOddsOverrides).toEqual({ "t1>t2>t3": 12.34 });
-    expect((await updateTrifectaOdds(repo, id, { mode: "reset", order: ["t1", "t2", "t3"] }, now)).ok).toBe(true);
-    expect((await repo.getMarket(id))?.trifectaOddsOverrides).toEqual({});
-    expect((await updateTrifectaOdds(repo, id, { mode: "override", order: ["t1", "t1", "t3"], odds: 10 }, now)).ok).toBe(false);
-    expect((await updateTrifectaOdds(repo, id, { mode: "default", odds: 1000.01 }, now)).ok).toBe(false);
-    expect((await updateTrifectaOdds(repo, id, { mode: "default", odds: 9.999 }, now)).ok).toBe(false);
-    expect((await updateTrifectaOdds(repo, id, { mode: "default", odds: 9 }, new Date("2026-10-01T02:00:00Z"))).ok).toBe(false);
+    expect(created.value.trifectaOddsDefault).toBe(50);
+    expect((await repo.getMarket(created.value.id))?.trifectaOddsOverrides).toEqual({});
   });
 
   it("同じ種目・ヒートに 2 つ目の Market は作れない", async () => {
@@ -694,6 +683,16 @@ describe("進行（遅延）の操作", () => {
 });
 
 describe("得点の公開", () => {
+  it("公開・非公開の操作で最終精算日時を戻さない", async () => {
+    const finalizedAt = "2026-10-02T06:00:00.000Z";
+    const settings = await repo.getSettings();
+    await repo.updateSettings({ finalSettledAt: finalizedAt });
+    vi.spyOn(repo, "getSettings").mockResolvedValueOnce(settings);
+    await publishScores(repo);
+    expect((await repo.getSettings()).finalSettledAt).toBe(finalizedAt);
+    await unpublishScores(repo);
+    expect((await repo.getSettings()).finalSettledAt).toBe(finalizedAt);
+  });
   it("公開すると時刻が記録され、2 回目は同じ時刻を返す", async () => {
     expect((await repo.getSettings()).scoresPublishedAt).toBeNull();
 
@@ -756,6 +755,7 @@ describe("CSV 取り込み", () => {
 });
 
 describe("最終精算", () => {
+  beforeEach(async () => { for (const market of await repo.listMarkets()) await repo.upsertMarket({ ...market, status: "settled", resultOrder: ["t1", "t2", "t3"] }); });
   it("全口座を精算して実行時刻を記録する", async () => {
     const result = await runFinalSettlement(repo);
     expect(result.ok).toBe(true);

@@ -30,7 +30,7 @@ export function MyBets({
   return (
     <>
       <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-lcd-text/20 pt-[7px] text-[10.5px] tracking-[.2em]">
-        <button type="button" onClick={onBack} className="min-h-10 cursor-pointer text-lcd-mid">
+        <button type="button" onClick={onBack} className="min-h-11 cursor-pointer text-lcd-mid">
           ‹ EVENTS
         </button>
         <button
@@ -38,7 +38,7 @@ export function MyBets({
           onClick={onToggle}
           disabled={!has}
           aria-expanded={open && has}
-          className={`min-h-10 ${has ? "cursor-pointer text-lcd-mid" : "cursor-default text-lcd-faint"}`}
+          className={`min-h-11 ${has ? "cursor-pointer text-lcd-mid" : "cursor-default text-lcd-faint"}`}
         >
           MY BETS <span className="text-[15px] text-lcd-hi">{rows.length}</span> {has ? (open ? "▲" : "▼") : ""}
         </button>

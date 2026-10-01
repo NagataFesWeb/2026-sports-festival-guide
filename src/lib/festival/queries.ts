@@ -63,11 +63,11 @@ export interface TopPageData {
 /** トップページのデータを一括で取得する */
 export async function getTopPageData(now: Date): Promise<TopPageData> {
   const repository = getRepository();
-  const [teams, allEvents, results, students, settings] = await Promise.all([
+  const [teams, allEvents, results, studentCount, settings] = await Promise.all([
     repository.listTeams(),
     repository.listEvents(),
     repository.listEventResults(),
-    repository.listStudents(),
+    repository.countStudents(),
     repository.getSettings(),
   ]);
 
@@ -88,7 +88,7 @@ export async function getTopPageData(now: Date): Promise<TopPageData> {
     scoresPublishedAt: settings.scoresPublishedAt,
     counts: {
       // 名簿が全校分（数百人）入るまでは公称の人数を出す（開発用の数人の名簿で「10 PLAYERS」にならないように）
-      players: students.length >= 100 ? students.length : ROSTER_FALLBACK,
+      players: studentCount >= 100 ? studentCount : ROSTER_FALLBACK,
       teams: sortedTeams.length,
       programs: events.length,
     },
@@ -194,6 +194,6 @@ export async function getRankingData(): Promise<{ finalSettledAt: string | null;
   const settings = await repository.getSettings();
   if (settings.finalSettledAt === null) return { finalSettledAt: null, rows: [] };
 
-  const [accounts, students] = await Promise.all([repository.listAccounts(), repository.listStudents()]);
-  return { finalSettledAt: settings.finalSettledAt, rows: rankAccounts(accounts, students) };
+  const accounts = await repository.listAccounts();
+  return { finalSettledAt: settings.finalSettledAt, rows: rankAccounts(accounts) };
 }

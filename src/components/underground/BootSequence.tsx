@@ -2,6 +2,7 @@
 // モックv3のBOOT・bootStep・bootLinesListを液晶内へ移植する。
 import { useEffect, useRef, useState } from "react";
 import { useSound } from "./sound";
+import { isMotionReduced } from "@/components/SiteMotion";
 type Line = { k: "dim" | "out" | "in" | "ok"; s: string; p?: number };
 export const BOOT: readonly Line[] = [
   { k: "dim", s: "NAGATA SYSTEMS  NODE 79" },
@@ -50,7 +51,7 @@ export function BootSequence({ onComplete }: { onComplete: () => void }) {
       }
       timer = setTimeout(step, full ? (input ? 280 : ln.p || 42) : (input ? 46 : 18));
     };
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (isMotionReduced()) {
       timer = setTimeout(() => { setLines([...BOOT]); timer = setTimeout(finish, 500); }, 0);
     } else timer = setTimeout(step, 1000);
     return () => clearTimeout(timer);

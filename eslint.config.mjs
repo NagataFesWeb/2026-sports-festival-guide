@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 個人資料・ローカル検証用の一時スクリプトはアプリコードではない。
+    ".private/**",
     // Claude Design のモック（docs/mockup/*.dc.html と同梱の support.js）は
     // 出典としてそのまま置いているだけなので Lint の対象にしない
     "docs/**",

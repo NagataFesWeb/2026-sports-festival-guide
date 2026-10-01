@@ -1,76 +1,51 @@
 "use client";
 
 import { useState } from "react";
-import { GroundGuide } from "@/components/ground-guide/GroundGuide";
-import { eventKey } from "@/lib/ground-guide/navigation";
-// 「自分の出場競技」。出場競技表（data/学籍番号別出場競技.csv → 静的データ）だけで描くので
-// DB を待たずに即表示できる。表示する値の組み立ては src/lib/festival/entries.ts 側で済ませる
+import dynamic from "next/dynamic";
 import type { StudentEntry } from "@/lib/festival/entries";
+import { FESTIVAL_DAY, type AgendaItem } from "@/lib/festival/ledger";
+import styles from "./agenda.module.css";
 
-/** 左ボーダーの色（モックの accent。ピンク→黄→青の繰り返し） */
-const ACCENTS: string[] = ["#FF2D55", "#FFE600", "#245BFF"];
+// 個人の3D案内はボタンを押したときだけ読み込む。
+const GroundGuide = dynamic(() => import("@/components/ground-guide/GroundGuide").then(m => m.GroundGuide), {
+  loading: () => <p role="status">集合図を読み込み中…</p>,
+});
 
-interface MyEntriesProps {
-  /** 出場競技。出場競技表に無い学籍番号なら null */
-  entries: StudentEntry[] | null;
-  /** 出場競技表の版（差し替えの確認用） */
-  version: string;
-  studentId: string;
-}
-
-export function MyEntries({ entries, version, studentId }: MyEntriesProps) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-  return (
-    <section className="min-w-0">
-      <h1 className="m-0 mb-1 font-om-mincho text-[clamp(20px,4vw,28px)] font-extrabold">自分の出場競技</h1>
-      {/* 下の「自分の招集案内」「出場種目」と種目名が重なるので、各セクションの役割を一言で書く */}
-      <div className="mb-3 text-[12px] text-om-gray-2">出場競技表から。競技ごとの自分の枠が分かります。</div>
-
-      {entries === null ? (
-        <div className="border-2 border-om-ink bg-white p-4">
-          <p className="m-0 text-[15px] font-black">この学籍番号は出場競技表にありません</p>
-          <p className="mt-2 mb-0 text-[12.5px] leading-[1.9] text-om-gray-2">
-            番号の入力ちがいがないか確認してください。正しいのに出ない場合は、実行委員に伝えてください。
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-[6px]">
-          {entries.map((entry, index) => (
-            <div
-              key={`${entry.event}/${entry.slot}/${index}`}
-              style={{ borderLeftColor: ACCENTS[index % ACCENTS.length] }}
-              className="grid grid-cols-[1fr_auto] items-center gap-[14px] border border-[rgba(17,17,17,.15)] border-l-[6px] bg-white px-4 py-[13px]"
-            >
-              <div className="min-w-0 text-[15px] font-black break-words">{entry.event}</div>
-              {/* 枠は右の札だけに出す（本文にも書くと同じ文字が 2 回並ぶ） */}
-              {entry.slot !== "" ? (
-                <div className="text-right">
-                  <div className="text-[9px] font-black tracking-[0.2em] text-om-gray-3">あなたは</div>
-                  <div className="mt-[3px] bg-om-ink px-[9px] py-[5px] text-[13px] font-black whitespace-nowrap text-om-paper">
-                    {entry.slot}
-                  </div>
-                </div>
-              ) : (
-                <div />
-              )}
-              {eventKey(entry.event) && <div className="col-span-2 min-w-0">
-                <button type="button" aria-expanded={openIndex === index} aria-controls={`entry-guide-${index}`}
-                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="min-h-11 cursor-pointer border-2 border-om-ink bg-om-yellow px-3 text-[13px] font-black">
-                  {openIndex === index ? "3D案内を閉じる" : "集合場所・移動を3Dで確認"}
-                </button>
-                {openIndex === index && <div id={`entry-guide-${index}`} className="mt-3">
-                  <GroundGuide key={`${studentId}/${index}`} embedded initialStudentId={studentId} initialEvent={entry.event} initialSlot={entry.slot}/>
-                </div>}
-              </div>}
+export function MyEntries({ entries, studentId, agenda, updating = false }: {
+  entries: StudentEntry[] | null; studentId: string; agenda: AgendaItem[]; updating?: boolean;
+}) {
+  const [open, setOpen] = useState<{ id: string; mode: "assembly" | "flow" } | null>(null);
+  const toggle = (id: string, mode: "assembly" | "flow") => setOpen(open?.id === id && open.mode === mode ? null : { id, mode });
+  return <section className={styles.agenda} aria-label="自分の当日案内">
+    <div className={styles.intro}>
+      <h1>いつ、どこに行く？</h1>
+      <p>当日の順番で並んでいます。集合のタイミングと場所を確認してください。</p>
+      <p className={styles.day}><time dateTime={FESTIVAL_DAY.date}>{FESTIVAL_DAY.dateLabel}</time></p>
+      <div className={styles.morning}><strong>{FESTIVAL_DAY.arrival} 登校完了</strong><span>{FESTIVAL_DAY.gathering} グラウンド集合</span><span>{FESTIVAL_DAY.rollCall} 点呼完了</span></div>
+    </div>
+    {entries === null && <p className={styles.notice} role="status">この学籍番号は出場競技表にありません。全員参加の案内を表示しています。番号を確認し、正しい場合は実行委員に伝えてください。</p>}
+    {updating && <p className={styles.update} role="status">台帳の案内を表示中。実行委員の最新案内を確認しています…</p>}
+    <ol className={styles.list}>
+      {agenda.map((item, index) => <li key={item.id}>
+        {item.order >= 6 && (index === 0 || agenda[index - 1].order < 6) && <div className={styles.lunch}><strong>{FESTIVAL_DAY.lunch}</strong> 昼休み</div>}
+        <article className={styles.card} data-common={item.common}>
+          <div className={styles.cardHeading}><h2>{item.title}</h2><span className={styles.slot}>{item.common ? "全員参加" : item.slot || "出場"}</span></div>
+          <dl className={styles.facts}>
+            <div><dt>集合のタイミング</dt><dd className={styles.gather}>{item.gather}</dd></div>
+            <div><dt>行く場所</dt><dd>{item.place}</dd></div>
+          </dl>
+          {item.start && <p className={styles.start}>競技・式の開始予定 {item.start}</p>}
+          {item.belongings && <p className={styles.note}><strong>持ち物・服装</strong> {item.belongings}</p>}
+          {item.note && <p className={styles.note}>{item.note}</p>}
+          {item.event && <>
+            <div className={styles.actions}>
+              <button type="button" className={styles.primary} aria-expanded={open?.id === item.id && open.mode === "assembly"} aria-controls={`agenda-guide-${item.id}`} onClick={() => toggle(item.id, "assembly")}>集合場所を確認{open?.id === item.id && open.mode === "assembly" ? " −" : " →"}</button>
+              <button type="button" aria-expanded={open?.id === item.id && open.mode === "flow"} aria-controls={`agenda-guide-${item.id}`} onClick={() => toggle(item.id, "flow")}>競技の流れを見る{open?.id === item.id && open.mode === "flow" ? " −" : " →"}</button>
             </div>
-          ))}
-        </div>
-      )}
-
-      <p className="mt-2 mb-0 font-display text-[10px] tracking-[0.18em] text-om-gray-3">
-        ENTRY LIST {version}
-      </p>
-    </section>
-  );
+            {open?.id === item.id && <div className={styles.expanded} id={`agenda-guide-${item.id}`}><GroundGuide key={`${item.id}-${open.mode}`} embedded initialStudentId={studentId} initialEvent={item.entryLabel} initialSlot={item.slot} initialMode={open.mode}/></div>}
+          </>}
+        </article>
+      </li>)}
+    </ol>
+  </section>;
 }

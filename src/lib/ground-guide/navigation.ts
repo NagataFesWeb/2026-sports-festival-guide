@@ -30,15 +30,30 @@ export interface AssemblyGroup extends Point {
   width: number;
   depth: number;
 }
+/** 本部を下にした台帳の配置。走前と走後はフィールドの左右に分かれる。 */
+export function relayWaitingPlace(side: "front" | "back", stage: "before" | "after"): Place {
+  const front = side === "front";
+  return { x: (front === (stage === "before") ? -1 : 1) * 18, z: front ? 18 : -18, label: `${front ? "本部側" : "バックストレート側"}・${stage === "before" ? "走前" : "走後"}待機` };
+}
+export function relayWaitingGroups(event: EventKey, stage: "before" | "after"): AssemblyGroup[] {
+  if (!["girls", "swedish", "mixed", "club"].includes(event)) return [];
+  const before = stage === "before";
+  const front = event === "girls" ? before ? "1・3・5走" : "2・4・6走"
+    : event === "swedish" ? before ? "2・6走" : "1・5・6走"
+    : event === "mixed" ? before ? "1・3・5・7・8走" : "2・4・6・7・8走" : "部別";
+  const back = event === "swedish" ? before ? "1・3・4・5走" : "2・3・4走"
+    : before ? "2・4・6走" : "1・3・5走";
+  return (event === "club" ? ["front"] as const : ["front", "back"] as const).map(side => ({
+    ...relayWaitingPlace(side, stage),
+    id: before ? event === "club" ? "club" : side : `${side}-after`,
+    width: 26, depth: 12,
+    label: `${side === "front" ? "本部側" : "バックストレート側"}・${before ? "走前" : "走後"}：${side === "front" ? front : back}`,
+    description: before ? event === "club" ? "部行進後、フィールド本部側の走前に整列。パフォーマンス→女子①→女子②→男子①→男子②。" : "集合場所は走前。各学年・コースごとに整列し、出走の指示を待つ。"
+      : "走り終えたら走後へ移動し、退場の指示まで待機。集合場所とは別の区分。",
+  }));
+}
 export function assemblyGroups(event: EventKey, round = 1): AssemblyGroup[] {
-  if (["girls", "swedish", "mixed"].includes(event)) {
-    const front = event === "girls" ? "1・3・5走" : event === "swedish" ? "2・6走" : "1・3・5・7・8走";
-    const back = event === "swedish" ? "1・3・4・5走" : "2・4・6走";
-    return [
-      { id:"front", x:-5,z:21,width:55,depth:11,label:`本部側：${front}`,description:"走前の待機区分。各学年・コースごとに整列。" },
-      { id:"back", x:-5,z:-21,width:55,depth:11,label:`バックストレート側：${back}`,description:"走前の待機区分。各学年・コースごとに整列。" },
-    ];
-  }
+  if (["girls", "swedish", "mixed", "club"].includes(event)) return relayWaitingGroups(event, "before");
   if (["opening","warmup","closing"].includes(event)) return [1,2,3].map(grade=>({
     id:`grade-${grade}`,x:(2-grade)*36,z:8,width:32,depth:24,label:`${grade}年・1〜8組`,
     description:event==="closing"?"本部を向いて右から1〜8組。男女各1列。":"本部を向いて右から1〜8組。出席番号順2列。",
@@ -51,7 +66,6 @@ export function assemblyGroups(event: EventKey, round = 1): AssemblyGroup[] {
       description:event==="rope"?"ロープ東側で本部を向いて2列。前半・後半は放送で交代。":event==="pole"?"クラスの待機列。個別の棒番号は係員に確認。":event==="ball"?"1年→2年→3年の順に3列で待機。":"総当たりのサークル待機位置。女子→男子。紅は時計回り、白は固定。",
     };
   });
-  if(event==="club")return [{id:"club",x:0,z:19,width:65,depth:16,label:"本部側・部別の走前待機",description:"パフォーマンス→女子→男子①→男子②のレース順。部行進後、出場者はフィールドに残って整列。"}];
   return [{id:"parade",x:0,z:-42,width:64,depth:9,label:"生徒席側・部別の招集場所",description:"野球部からダンス部まで行進順で整列。プラカードを先頭に並ぶ。"}];
 }
 
@@ -65,6 +79,11 @@ export function eventKey(label: string): EventKey | null {
   if (label.includes("女子") && label.includes("リレー")) return "girls";
   return EVENTS.find(e => label.includes(e.label))?.key ?? null;
 }
+/** 混合7〜8走の枠内順を、競技全体の第7・第8走者へ変換する。 */
+export function entryRunner(label: string, slot: string): number {
+  const runner = Number(/第([1-8])走者/.exec(slot.normalize("NFKC"))?.[1] ?? 1);
+  return /7\s*[~〜～－-]\s*8/.test(label.normalize("NFKC")) && runner <= 2 ? runner + 6 : runner;
+}
 export interface GuidePlan { assembly: Place; destination: Place; note: string; timing: string; layout: EventKey }
 export function guidePlan(event: EventKey, grade: number, classNo: number, runner: number, round = 1): GuidePlan {
   const laneClasses = [[2, 7, 6, 4, 1, 3, 5, 8], [6, 4, 3, 5, 2, 7, 8, 1], [6, 7, 2, 5, 3, 8, 4, 1]];
@@ -74,7 +93,8 @@ export function guidePlan(event: EventKey, grade: number, classNo: number, runne
     const back = event === "girls" ? runner % 2 === 0 : event === "swedish" ? ![2, 6].includes(runner) : event === "mixed" ? [2, 4, 6].includes(runner) : false;
     const z = back ? -1 : 1;
     const side = back ? "バックストレート側" : "本部側";
-    return { ...base, assembly: { x: -18 + (grade - 1) * 13, z: z * 21, label: `${side}・走前待機` }, destination: { x: -22, z: z * (event === "club" ? 32 : 29 + lane * .65), label: `${side}・${event === "club" ? "スタート／バトン位置" : `${lane}コースのスタート／バトン位置`}` }, note: `${event === "club" ? "部行進後はフィールド本部側に残って整列。部別レーンは係員に確認。" : `第${runner}走者。${grade}年${classNo}組は${lane}コース。`} 集合・競技位置への移動はトラックを横断できます。矢印は移動案内で、走るコースではありません。`, timing: event === "girls" ? "準備体操退場後" : event === "swedish" ? "女子リレー退場後" : event === "mixed" ? "男子スウェーデンリレー退場後" : "部行進退場後" };
+    const waiting = relayWaitingPlace(back ? "back" : "front", "before");
+    return { ...base, assembly: { ...waiting, x: waiting.x + (grade - 2) * 3 }, destination: { x: 0, z: z * (event === "club" ? 32 : 29 + lane * .65), label: `${side}・${event === "club" ? "スタート／バトン位置" : `${lane}コースのスタート／バトン位置`}` }, note: `${event === "club" ? "部行進後は本部側の走前に整列。部別レーンは係員に確認。" : `第${runner}走者。${grade}年${classNo}組は${lane}コース。`} 集合は走前、走り終えたら走後で退場の指示を待ちます。走行は反時計回りです。集合・競技位置への移動はトラックを横断できます。矢印は移動案内で、走るコースではありません。`, timing: event === "girls" ? "準備体操退場後" : event === "swedish" ? "女子リレー退場後" : event === "mixed" ? "男子スウェーデンリレー退場後" : "部行進退場後" };
   }
   if (event === "rope") {
     const x = -42 + Math.floor((classNo - 1) / 2) * 28;
@@ -95,7 +115,7 @@ export function guidePlan(event: EventKey, grade: number, classNo: number, runne
     return { ...base, assembly: { x: court.x, z: court.z + (red ? 6 : -6), label: `第${round}試合・${red ? "紅" : "白"}のサークル待機位置` }, destination: { ...court, label: "対戦サークル" }, timing: "集合時刻は要確認（資料に競技順との不整合あり）", note: "3年生・1回戦の総当たり戦。白組は同じコート、紅組は時計回りに移動。2回戦の大将戦は配置が異なるため、この矢印の対象外です。" };
   }
   if (event === "ball") return { ...base, assembly: { x: classNo % 2 ? 47 : -47, z: 21 - Math.floor((classNo - 1) / 2) * 14, label: `${classNo}組の待機列（学年順）` }, destination: { x: 0, z: 14, label: "円コート手前（①／②は係員確認）" }, timing: "集合時刻は要確認（資料に競技順との不整合あり）", note: "原図は指揮台が上のため、他の図と向きを揃えて180度回転。組ごとの円コート割当が不明のため、矢印は2コートの手前までです。各組1年→2年→3年の順で3列。" };
-  if (event === "parade") return { ...base, assembly: { x: 0, z: -42, label: "部行進招集場所（生徒席側）" }, destination: { x: 0, z: 4, label: "行進後の観覧隊形" }, timing: "資料記載：昼休み10分前（当日放送を確認）", note: "プラカードを先頭に、野球部からダンス部まで部別に整列。個人の所属部は学籍番号から推測しません。リレー出場者は行進後フィールドに残ります。" };
+  if (event === "parade") return { ...base, assembly: { x: 0, z: -42, label: "部行進招集場所（生徒席側）" }, destination: { x: 0, z: 4, label: "行進後の観覧隊形" }, timing: "招集係・放送で確認（台帳は「昼休み10分前」と記載）", note: "プラカードを先頭に、野球部からダンス部まで部別に整列。リレー出場者は行進後フィールドに残ります。" };
   const x = (2 - grade) * 36 + (4.5 - classNo) * 4;
   const place = { x, z: 8, label: `${grade}年${classNo}組の整列位置` };
   return { ...base, assembly: place, destination: { ...place, label: event === "warmup" ? "体操の隊形（号令で広がる）" : place.label }, timing: event === "opening" ? "8:20集合・8:30点呼完了" : event === "closing" ? "騎馬戦退場後、放送で集合" : "開会式の隊形から開始", note: event === "closing" ? "一度生徒席に着席してから放送で移動。開会式と同じ配置、男女各1列。" : "本部を向いて右から1年→2年→3年、右から1組→8組。出席番号順2列。体操は2年5組右列と各列先頭を基準に広がります。" };

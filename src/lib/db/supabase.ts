@@ -1,3 +1,4 @@
+import { DEFAULT_TRIFECTA_ODDS } from "@/lib/casino/odds";
 // 本番用の永続化実装。PostgREST（Supabase の REST API）に fetch で直接アクセスする
 // service role キーを使うためサーバー側専用。npm 依存を増やさないため公式クライアントは使わない
 import type { Bet, BetKind, CasinoAccountRecord, EventCategory as MarketCategory, Market, MarketOption, MarketStatus, MarketType } from "../casino/types";
@@ -14,7 +15,7 @@ import type {
   Student,
   Team,
 } from "../festival/types";
-import type { Balances, BetFilter, Repository } from "./repository";
+import type { Balances, BetFilter, CasinoMutation, Repository } from "./repository";
 
 /** 1 リクエストに載せる最大行数（URL 長・ペイロード対策） */
 const INSERT_CHUNK = 500;
@@ -34,7 +35,7 @@ function credentials(): { url: string; key: string } {
 }
 
 interface SendOptions {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "HEAD" | "POST" | "PATCH" | "DELETE";
   /** Prefer ヘッダ（resolution=merge-duplicates / return=representation など） */
   prefer?: string;
   body?: unknown;
@@ -311,7 +312,7 @@ const toMarket = (r: MarketRow): Market => ({
   deadline: r.deadline,
   status: r.status,
   resultOrder: r.result_order,
-  trifectaOddsDefault: r.trifecta_odds_default ?? 336,
+  trifectaOddsDefault: r.trifecta_odds_default ?? DEFAULT_TRIFECTA_ODDS,
   trifectaOddsOverrides: r.trifecta_odds_overrides ?? {},
 });
 const fromMarket = (m: Market): MarketRow => ({
@@ -327,7 +328,7 @@ const fromMarket = (m: Market): MarketRow => ({
   deadline: m.deadline,
   status: m.status,
   result_order: m.resultOrder,
-  trifecta_odds_default: m.trifectaOddsDefault ?? 336,
+  trifecta_odds_default: m.trifectaOddsDefault ?? DEFAULT_TRIFECTA_ODDS,
   trifecta_odds_overrides: m.trifectaOddsOverrides ?? {},
 });
 
@@ -375,10 +376,47 @@ const fromAccount = (a: CasinoAccountRecord): AccountRow => ({
 });
 
 export class SupabaseRepository implements Repository {
+  async hasCasinoReceipt(requestKey: string): Promise<boolean> {
+    return (await selectRows<{ request_key: string }>(`casino_receipts?select=request_key&${eq("request_key", requestKey)}&limit=1`)).length > 0;
+  }
+
+  async commitCasinoMutation(c: CasinoMutation): Promise<boolean> {
+    const res = await send("rpc/commit_casino_mutation", {
+      method: "POST",
+      body: { change: {
+        expected_final_settled_at: c.expectedFinalSettledAt,
+        expected_accounts: c.expectedAccounts.map(fromAccount),
+        expected_markets: c.expectedMarkets?.map(fromMarket) ?? [],
+        expected_events: c.expectedEvents?.map(fromEvent) ?? [],
+        expected_bets: c.expectedBets?.map(fromBet) ?? [],
+        bet_scope: c.betScope ?? null,
+        all_accounts: c.allAccounts ?? false,
+        all_markets: c.allMarkets ?? false,
+        accounts: c.accounts?.map(fromAccount) ?? [],
+        insert_account: c.insertAccount ? fromAccount(c.insertAccount) : null,
+        insert_bet: c.insertBet ? fromBet(c.insertBet) : null,
+        delete_bet_id: c.deleteBetId ?? null,
+        payouts: c.payouts?.map((p) => ({ id: p.id, payout_amount: p.payoutAmount })) ?? [],
+        market: c.market ? fromMarket(c.market) : null,
+        event_result: c.eventResult ? fromEventResult(c.eventResult) : null,
+        final_settled_at: c.finalSettledAt ?? null,
+        request_key: c.requestKey ?? null,
+        accept_before: c.acceptBefore ?? null,
+      } },
+    });
+    return (await res.json()) === true;
+  }
   // ---- 生徒名簿 ----
 
   async listStudents(): Promise<Student[]> {
     return (await selectRows<StudentRow>("students?select=*&order=student_id")).map(toStudent);
+  }
+
+  async countStudents(): Promise<number> {
+    const response = await send("students?select=student_id", { method: "HEAD", prefer: "count=exact", range: "0-0" });
+    const total = response.headers.get("content-range")?.split("/")[1];
+    if (!total || !/^\d+$/.test(total)) throw new Error("Supabase の名簿件数を取得できませんでした");
+    return Number(total);
   }
 
   async getStudent(studentId: string): Promise<Student | null> {
@@ -573,11 +611,12 @@ export class SupabaseRepository implements Repository {
     return { finalSettledAt: rows[0].final_settled_at, scoresPublishedAt: rows[0].scores_published_at ?? null };
   }
 
-  async updateSettings(settings: Settings): Promise<void> {
-    // id を明示しないと merge-duplicates の衝突対象が無く、2 行目が挿入されてしまう
-    await upsertRows("settings", [
-      { id: 1, final_settled_at: settings.finalSettledAt, scores_published_at: settings.scoresPublishedAt },
-    ]);
+  async updateSettings(settings: Partial<Settings>): Promise<void> {
+    // 得点公開と最終精算が重なっても、指定されていない列は上書きしない。
+    await send("settings?id=eq.1", { method: "PATCH", body: {
+      ...(settings.finalSettledAt !== undefined ? { final_settled_at: settings.finalSettledAt } : {}),
+      ...(settings.scoresPublishedAt !== undefined ? { scores_published_at: settings.scoresPublishedAt } : {}),
+    }, prefer: "return=minimal" });
   }
 
   newId(prefix: string): string {

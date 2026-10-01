@@ -14,6 +14,8 @@ import { Lcd } from "./Lcd";
 import { useSound } from "./sound";
 import { useServerClock } from "./useServerClock";
 
+import { casinoFetch } from "./request";
+
 type Action = "borrow" | "repay";
 
 /** サーバーのエラーコード → LCD の表示（日本語の補助文を必ず付ける） */
@@ -26,7 +28,7 @@ const ERROR_VIEW: Record<string, BetErrorView> = {
   conflict: { title: "BUSY ・ RETRY", body: "他の操作と競合して書き込めなかった。もう一度実行する。", retry: true },
   account_not_found: { title: "NO ACCOUNT", body: "口座が見つからない。入場からやり直す。" },
   bad_request: { title: "BAD REQUEST", body: "入力が不正。金額を確認する。" },
-  conn: { title: "CONNECTION ERROR", body: "NODE 79 との接続が切れた。入力内容は保持している。", retry: true },
+  conn: { title: "CONNECTION ERROR", body: "送信結果を確認できない。同じ操作として再試行し、二重の借入れ・返済を防ぐ。", retry: true },
   empty: { title: "AMOUNT REQUIRED", body: "金額を入力する。" },
 };
 
@@ -60,6 +62,9 @@ export function CreditScreen({ initial }: { initial: CreditView }) {
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const busyRef = useRef(false);
+  const pending = useRef<{ key: string; action: Action; amount: number } | null>(null);
+
   const locked = view.finalized;
   const balance = view.account.pointsBalance;
   const debt = view.account.debtAmount;
@@ -75,25 +80,30 @@ export function CreditScreen({ initial }: { initial: CreditView }) {
   }
 
   async function send(which: Action) {
-    if (busy || locked) return;
+    if (busyRef.current || (locked && !pending.current)) return;
     setAction(which);
-    const value = parseStake(which === "borrow" ? borrowStr : repayStr);
+    const value = pending.current?.amount ?? parseStake(which === "borrow" ? borrowStr : repayStr);
     if (value === null) {
       setErrorKey("empty");
       blip(140, 0.18);
       return;
     }
+    const order = pending.current ?? { key: crypto.randomUUID(), action: which, amount: value };
+    pending.current = order;
+    which = order.action;
+    busyRef.current = true;
     setBusy(true);
     setErrorKey(null);
     blip(820, 0.08);
     try {
-      const res = await fetch("/api/casino/credit", {
+      const res = await casinoFetch("/api/casino/credit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": order.key },
         body: JSON.stringify({ action: which, amount: value }),
       });
       const data = (await res.json()) as CreditApiResponse;
       if (!data.ok) {
+        pending.current = null;
         if (data.error === "unauthorized") {
           router.push("/casino/enter");
           return;
@@ -102,6 +112,7 @@ export function CreditScreen({ initial }: { initial: CreditView }) {
         blip(140, 0.2);
         return;
       }
+      pending.current = null;
       setView(data.view);
       setToast(
         which === "borrow"
@@ -114,6 +125,7 @@ export function CreditScreen({ initial }: { initial: CreditView }) {
       setErrorKey("conn");
       blip(160, 0.22, "sawtooth");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }

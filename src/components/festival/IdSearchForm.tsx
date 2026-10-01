@@ -1,4 +1,5 @@
-// 学籍番号で招集案内を探すフォーム。GET で /me に飛ばすだけなのでクライアント JS は不要
+// 学籍番号で招集案内を探すフォーム。NextのFormでページ全体を読み直さずに移動する。
+import Form from "next/form";
 interface IdSearchFormProps {
   /** cta = トップのピンク帯の中、page = クリーム地のセクション内 */
   tone: "cta" | "page";
@@ -10,7 +11,7 @@ interface IdSearchFormProps {
 export function IdSearchForm({ tone, buttonLabel, defaultValue, inputId = "invite-student-id" }: IdSearchFormProps) {
   const cta = tone === "cta";
   return (
-    <form action="/me" method="get" className="flex flex-wrap items-end gap-3">
+    <Form action="/me" className="flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1 basis-40">
         <label
           htmlFor={inputId}
@@ -37,6 +38,6 @@ export function IdSearchForm({ tone, buttonLabel, defaultValue, inputId = "invit
       >
         {buttonLabel}
       </button>
-    </form>
+    </Form>
   );
 }

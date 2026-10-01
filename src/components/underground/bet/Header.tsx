@@ -5,8 +5,8 @@ import { KIND_EN, KIND_JP } from "./labels";
 
 export function StatusBar({ balance, debt, hasDebt, onBack }: { balance: string; debt: string; hasDebt: boolean; onBack: () => void }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-4 text-[10.5px] tracking-[.18em] text-lcd-dim">
-      <div className="flex items-baseline gap-[18px]">
+    <div className="flex flex-wrap items-center justify-between gap-2 text-[10.5px] tracking-[.04em] text-lcd-dim">
+      <div className="flex items-baseline gap-2">
         <div>
           BALANCE <span className="text-[17px] tracking-[.02em] tabular-nums text-lcd-hi">{balance}</span> C
         </div>
@@ -14,7 +14,7 @@ export function StatusBar({ balance, debt, hasDebt, onBack }: { balance: string;
           DEBT <span className={`text-[17px] tracking-[.02em] tabular-nums ${hasDebt ? "text-lcd-red" : "text-lcd-faint"}`}>{debt}</span> C
         </div>
       </div>
-      <button type="button" onClick={onBack} className="flex-none cursor-pointer py-1 tracking-[.22em] text-lcd-mid">
+      <button type="button" onClick={onBack} className="flex-none cursor-pointer min-h-11 py-1 tracking-[.22em] text-lcd-mid">
         ‹ EVENTS
       </button>
     </div>
@@ -44,24 +44,24 @@ export function EventHeader({
 }) {
   const st = STATUS_LABEL[status];
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-2 gap-y-1">
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-2.5">
-          <span className="ug-rgb font-display text-[clamp(22px,6.4vw,34px)] tracking-[.06em] text-lcd-hi">{no}</span>
-          <h1 className="m-0 font-jp text-[clamp(14px,3.8vw,19px)] font-bold text-lcd-hi">{title}</h1>
+          <span className="ug-rgb font-display text-[clamp(22px,4vw,26px)] tracking-[.06em] text-lcd-hi">{no}</span>
+          <h1 className="m-0 font-jp text-[clamp(14px,2vw,17px)] font-bold text-lcd-hi">{title}</h1>
         </div>
-        <div className="mt-[3px] text-[10px] tracking-[.2em] text-lcd-dim">{sub}</div>
       </div>
       <div className="flex-none text-right">
         <div className={`text-[10px] tracking-[.26em] ${st.cls}`}>{st.label}</div>
         <div
-          className={`ug-rgb text-[clamp(20px,5.6vw,28px)] tracking-[.04em] tabular-nums ${
+          className={`ug-rgb text-[clamp(20px,4vw,24px)] tracking-[.04em] tabular-nums ${
             status === "closed" || urgent ? "text-lcd-red" : "text-lcd-hi"
           }`}
         >
           {clock}
         </div>
       </div>
+      <div className="ug-event-sub text-[10px] tracking-[.04em] text-lcd-dim">{sub}</div>
     </div>
   );
 }

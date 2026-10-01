@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { parseStake } from "@/lib/casino/betting";
 import { formatClock, formatCountdown, formatPoints } from "@/lib/casino/format";
 import {
+  DEFAULT_TRIFECTA_ODDS,
+  MINIMUM_ODDS,
   estimateOdds,
   estimateReturn,
   formatOdds,
@@ -33,6 +35,8 @@ import { OddsBoard } from "./OddsBoard";
 import { ResultReveal } from "./ResultReveal";
 import { TrifectaPicker } from "./TrifectaPicker";
 import { WinFx } from "./WinFx";
+
+import { casinoFetch } from "../request";
 
 type ScreenError = "balance" | "stake" | "closed" | "conn";
 type Tri = [string | null, string | null, string | null];
@@ -72,6 +76,9 @@ export function BetScreen({ initial }: { initial: MarketView }) {
   const [reveal, setReveal] = useState(false);
   const [win, setWin] = useState(false);
   const now = useServerClock(view.serverNow);
+  const busyRef = useRef(false);
+  const syncSeq = useRef(0);
+  const pendingBet = useRef<{ key: string; kind: BetKind; selection: string[]; amount: number } | null>(null);
 
   const viewRef = useRef(view);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -95,11 +102,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
       ? [target]
       : null;
   const pool = view.pools[kind];
-  const curOdds = selection
-    ? isTri
-      ? m.trifectaOddsOverrides[selectionKey(selection)] ?? m.trifectaOddsDefault
-      : estimateOdds(pool, kind, selectionKey(selection))
-    : null;
+  const curOdds = selection ? estimateOdds(pool, kind, selectionKey(selection)) : null;
   const amount = parseStake(stakeStr);
   const stakeOk = amount !== null && amount <= balance;
 
@@ -132,11 +135,14 @@ export function BetScreen({ initial }: { initial: MarketView }) {
         setTimeout(() => setFlash([]), 450);
       }
     }
+    viewRef.current = next;
     setView(next);
     setLastSync(next.serverNow);
-    setLink("online");
-    setRetry(null);
-    setError((e) => (e === "conn" ? null : e));
+    setLink(pendingBet.current ? "lost" : "online");
+    if (!pendingBet.current) {
+      setRetry(null);
+      setError((e) => (e === "conn" ? null : e));
+    }
   }
 
   function lostLink(r: Retry) {
@@ -147,23 +153,30 @@ export function BetScreen({ initial }: { initial: MarketView }) {
   }
 
   async function refresh(manual: boolean) {
+    if (busyRef.current) return;
+    const seq = ++syncSeq.current;
     try {
-      const res = await fetch(`/api/casino/markets/${encodeURIComponent(m.id)}`, { cache: "no-store" });
+      const res = await casinoFetch(`/api/casino/markets/${encodeURIComponent(m.id)}`, { cache: "no-store" });
       const data = (await res.json()) as ApiResponse;
-      if (!data.ok) throw new Error(data.error);
+      if (!data.ok) {
+        if (data.error === "unauthorized") { router.push("/casino/enter"); return; }
+        throw new Error(data.error);
+      }
+      if (seq !== syncSeq.current || busyRef.current) return;
       applyView(data.view, true);
       if (manual) {
         showToast("SYNC COMPLETE");
         blip(900, 0.1, "sine");
       }
     } catch {
-      lostLink({ type: "refresh" });
+      if (seq === syncSeq.current && !busyRef.current) lostLink(pendingBet.current ? { type: "place" } : { type: "refresh" });
     }
   }
 
   function rejectBet(code: ApiErrorCode) {
     blip(140, 0.2);
     if (code === "insufficient_balance") setError("balance");
+    else if (code === "conflict") showToast("同時操作と競合しました。同期して再試行してください");
     else if (code === "invalid_stake") setError("stake");
     else if (code === "market_closed") {
       setError("closed");
@@ -172,46 +185,53 @@ export function BetScreen({ initial }: { initial: MarketView }) {
   }
 
   async function place() {
-    if (processing) return;
-    if (!open) {
+    if (busyRef.current) return;
+    if (!open && !pendingBet.current) {
       setError("closed");
       blip(140, 0.16);
       return;
     }
-    if (!selection) {
+    if (!selection && !pendingBet.current) {
       showToast(isTri ? "SELECT 1ST・2ND・3RD FIRST" : "SELECT TARGET FIRST");
       blip(140, 0.12);
       return;
     }
-    if (amount === null) {
+    if (amount === null && !pendingBet.current) {
       setError("stake");
       blip(140, 0.2);
       return;
     }
-    if (amount > balance) {
+    if (amount !== null && amount > balance && !pendingBet.current) {
       setError("balance");
       blip(140, 0.2);
       return;
     }
+    const order = pendingBet.current ?? { key: crypto.randomUUID(), kind, selection: selection!, amount: amount! };
+    pendingBet.current = order;
+    busyRef.current = true;
+    syncSeq.current++;
     setProcessing(true);
     setError(null);
     blip(880, 0.1);
-    const betKind = kind;
+    const betKind = order.kind;
     const before = balance;
     try {
-      const res = await fetch(`/api/casino/markets/${encodeURIComponent(m.id)}/bets`, {
+      const res = await casinoFetch(`/api/casino/markets/${encodeURIComponent(m.id)}/bets`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: betKind, selection, amount }),
+        headers: { "Content-Type": "application/json", "Idempotency-Key": order.key },
+        body: JSON.stringify({ kind: order.kind, selection: order.selection, amount: order.amount }),
       });
       const data = (await res.json()) as ApiResponse;
       if (!data.ok) {
+        pendingBet.current = null;
+        if (data.error === "unauthorized") { router.push("/casino/enter"); return; }
         rejectBet(data.error);
         return;
       }
+      pendingBet.current = null;
       applyView(data.view, false);
       setAccept({
-        line1: `${isCustom ? "二択" : KIND_JP[betKind]} ・ ${pickLabel(betKind, selection)} ・ ${formatPoints(amount)} C`,
+        line1: `${isCustom ? "二択" : KIND_JP[betKind]} ・ ${pickLabel(betKind, order.selection)} ・ ${formatPoints(order.amount)} C`,
         line2: `${formatPoints(before)} → ${formatPoints(data.view.account.pointsBalance)}`,
       });
       setTimeout(() => setAccept(null), 1500);
@@ -222,11 +242,13 @@ export function BetScreen({ initial }: { initial: MarketView }) {
     } catch {
       lostLink({ type: "place" });
     } finally {
+      busyRef.current = false;
       setProcessing(false);
     }
   }
 
   async function cancel(betId: string) {
+    if (busyRef.current || pendingBet.current) return;
     const b = view.myBets.find((x) => x.id === betId);
     if (!b) return;
     if (!open) {
@@ -234,10 +256,15 @@ export function BetScreen({ initial }: { initial: MarketView }) {
       blip(140, 0.16);
       return;
     }
+    busyRef.current = true;
+    syncSeq.current++;
+    setProcessing(true);
     try {
-      const res = await fetch(`/api/casino/bets/${encodeURIComponent(betId)}`, { method: "DELETE" });
+      const res = await casinoFetch(`/api/casino/bets/${encodeURIComponent(betId)}`, { method: "DELETE" });
       const data = (await res.json()) as ApiResponse;
       if (!data.ok) {
+        if (data.error === "unauthorized") { router.push("/casino/enter"); return; }
+        if (data.error === "bet_not_found") { showToast("取消済み・履歴を同期する"); return; }
         showToast(data.error === "market_closed" ? "LOCKED ・ CANCEL DISABLED" : `REJECTED ・ ${data.error.toUpperCase()}`);
         blip(140, 0.16);
         return;
@@ -247,6 +274,10 @@ export function BetScreen({ initial }: { initial: MarketView }) {
       blip(300, 0.1);
     } catch {
       lostLink({ type: "cancel", betId });
+    } finally {
+      busyRef.current = false;
+      setProcessing(false);
+      void refresh(false);
     }
   }
 
@@ -408,16 +439,19 @@ export function BetScreen({ initial }: { initial: MarketView }) {
   useEffect(() => {
     keyRef.current = onKey;
     pollRef.current = () => {
-      if (!processing) void refresh(false);
+      if (!processing && !document.hidden) void refresh(false);
     };
   });
   useEffect(() => {
     const h = (e: KeyboardEvent) => keyRef.current(e);
     window.addEventListener("keydown", h);
     const t = setInterval(() => pollRef.current(), POLL_MS);
+    const onVisible = () => { if (!document.hidden) pollRef.current(); };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener("keydown", h);
       clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -502,7 +536,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
         : error === "closed"
           ? { title: "BETTING CLOSED", body: "締切後は新規ベット・追加・取消ができない。" }
           : error === "conn"
-            ? { title: "CONNECTION ERROR", body: "NODE 79 との接続が切れた。入力内容は保持している。", retry: true }
+            ? { title: "CONNECTION ERROR", body: "送信結果を確認できない。同じ注文として再試行し、二重送信を防ぐ。入力内容は保持している。", retry: true }
             : null;
 
   const estReturn = stakeOk ? estimateReturn(curOdds, amount) : null;
@@ -603,6 +637,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           clock={open ? formatCountdown(remaining) : "--:--:--"}
           urgent={open && remaining < URGENT_MS}
         />
+        <p className="mt-1 font-jp text-[11px] leading-relaxed text-lcd-dim">{m.kinds.length > 1 ? `単勝・複勝 最低${MINIMUM_ODDS}倍 ／ 三連単 ${DEFAULT_TRIFECTA_ODDS}倍固定` : `単勝 最低${MINIMUM_ODDS}倍`}</p>
         {m.kinds.length > 1 && <BetTypeTabs kinds={m.kinds} current={kind} onSelect={selectKind} />}
 
         {status === "settled" && winnerId && (
@@ -614,6 +649,8 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           />
         )}
 
+        <div className="ug-bet-layout">
+        <div>
         {isCustom ? (
           <CustomChoice options={customOptions} onPick={pick} />
         ) : isTri ? (
@@ -632,6 +669,8 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           <OddsBoard rows={oddsRows} poolLabel="POOL" onPick={pick} onHover={setCursor} />
         )}
 
+        </div>
+        <div>
         {errorView && <BetErrorPanel error={errorView} onRetry={doRetry} />}
 
         <BetSlip
@@ -639,8 +678,9 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           minHint={open ? (isTri ? "1着・2着・3着を指定する" : "対象をタップして選択する") : status === "settled" ? "結果確定済み" : "締切済み"}
           kindLabel={isCustom ? "二択" : KIND_JP[kind]}
           selLabel={isTri ? tri.map((id) => (id ? numOf(id) : "－")).join(" → ") : target ? `${numOf(target)} ${nameOf(target)}` : ""}
-          oddsLabel={isTri ? "EST. ODDS" : "ODDS"}
+          oddsLabel={isTri ? "FIXED ODDS" : "ODDS"}
           oddsText={formatOdds(curOdds)}
+          oddsNote={isTri ? `着順まで的中すると賭け金の${DEFAULT_TRIFECTA_ODDS}倍。参加人数で変動しません。` : `的中時は最低${MINIMUM_ODDS}倍。${MINIMUM_ODDS}倍を超える倍率は他のベットで変動します。`}
           stakeStr={stakeStr}
           stakeOk={stakeOk}
           onStake={editStake}
@@ -686,6 +726,8 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           onBet={() => void place()}
         />
 
+        </div>
+        </div>
         <MyBets
           rows={view.myBets.map((b) => ({
             id: b.id,
@@ -701,7 +743,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
                   ? ""
                   : "LOCKED",
             tone: b.payoutAmount !== null ? (b.payoutAmount > 0 ? "hit" : "miss") : "lock",
-            cancelable: open && b.payoutAmount === null,
+            cancelable: open && !processing && error !== "conn" && b.payoutAmount === null,
           }))}
           open={mineOpen}
           onToggle={() => {

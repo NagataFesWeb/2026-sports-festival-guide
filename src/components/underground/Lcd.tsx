@@ -46,28 +46,28 @@ export function Lcd({
       {overlay}
       <div className="ug-lcd-body" data-lcd>
         {boot ? boot : <>
-        <div className="mb-3 flex items-center justify-between gap-2.5 border-b border-dashed border-lcd-text/25 pb-[7px] text-[11px] tracking-[.14em]">
+        <div className="ug-lcd-header mb-2 flex items-center justify-between gap-1 border-b border-dashed border-lcd-text/25 pb-1 text-[11px] tracking-[.14em]">
           <div className="flex min-w-0 overflow-x-auto [scrollbar-width:none]">
             {tabs.map((t) => (
               <span
                 key={t.label}
-                className={`flex-none whitespace-nowrap px-[7px] py-0.5 tracking-[.12em] ${t.active ? "ug-sel" : "text-lcd-dim"}`}
+                className={`flex-none whitespace-nowrap px-[7px] py-0.5 tracking-[.12em] ${t.active ? "ug-sel" : "hidden text-lcd-dim min-[700px]:block"}`}
               >
                 {t.label}
               </span>
             ))}
           </div>
-          <div className="flex-none text-right">
-            <div className="tabular-nums text-lcd-mid" suppressHydrationWarning>
+          <div className="flex flex-none items-center gap-2 text-right">
+            <div className="hidden tabular-nums text-lcd-mid min-[360px]:block" suppressHydrationWarning>
               {clock}
             </div>
             {sync && (
               <button
                 type="button"
                 onClick={sync.onSync}
-                className="mt-[3px] flex cursor-pointer items-center justify-end gap-2 text-[9px] tracking-[.13em]"
+                className="ug-lcd-sync flex cursor-pointer items-center justify-end gap-2 text-[10px] tracking-[.08em]"
               >
-                <span className="whitespace-nowrap text-lcd-faint" suppressHydrationWarning>
+                <span className="hidden whitespace-nowrap text-lcd-faint min-[700px]:inline" suppressHydrationWarning>
                   {sync.label} {sync.time}
                 </span>
                 <span className={`inline-flex items-center gap-1 whitespace-nowrap ${sync.lost ? "text-lcd-red" : sync.pulse ? "text-lcd-hi" : "text-lcd-ok"}`}>
@@ -87,9 +87,9 @@ export function Lcd({
       <div
         role="status"
         aria-live="polite"
-        className="relative z-[4] flex flex-none justify-between gap-2.5 border-t border-lcd-text/15 bg-[rgba(6,10,4,.85)] px-[clamp(12px,2.4vw,20px)] py-[7px] text-[11px] tracking-[.1em]"
+        className="ug-lcd-status relative z-[4] flex flex-none justify-between gap-1 border-t border-lcd-text/15 bg-[rgba(6,10,4,.85)] tracking-[.06em]"
       >
-        <div className={`truncate ${statusAlert ? "text-lcd-red" : "text-lcd-text"}`}>
+        <div className={statusAlert ? "text-lcd-red" : "text-lcd-text"}>
           {status}
           <span className="ug-caret">_</span>
         </div>

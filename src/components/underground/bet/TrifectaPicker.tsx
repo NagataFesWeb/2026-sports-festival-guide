@@ -65,7 +65,7 @@ export function TrifectaPicker({
         </div>
         <div className="mt-[13px] text-center text-[clamp(15px,4.2vw,20px)] tracking-[.26em] text-lcd-text">{combo}</div>
         <div className="mt-[7px] text-center">
-          <div className="text-[10px] tracking-[.26em] text-lcd-dim">EST. ODDS ・ 見込み倍率</div>
+          <div className="text-[10px] tracking-[.26em] text-lcd-dim">FIXED ODDS ・ 固定倍率</div>
           <div className={`text-[clamp(24px,7vw,34px)] tracking-[.04em] tabular-nums ${hasOdds ? "text-lcd-hi" : "text-lcd-faint"}`}>{odds}</div>
         </div>
       </div>

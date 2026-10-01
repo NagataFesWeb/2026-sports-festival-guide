@@ -58,9 +58,11 @@ export function FinalTab({ preview }: { preview: SettlementPreview }) {
                 <dd className="adm-num">{formatPoints(preview.totalDebt)}pt</dd>
               </div>
             </dl>
-            <ActionForm action={runFinalSettlementAction} submitLabel="最終精算を実行する" tone="danger">
+            {preview.unsettledMarkets > 0 ? <p className="adm-note mt-3" role="status">
+              未確定の予想が{preview.unsettledMarkets}件あります。「結果入力」と「Market」で全結果を確定すると最終精算できます。
+            </p> : <ActionForm action={runFinalSettlementAction} submitLabel="最終精算を実行する" tone="danger">
               <ConfirmCheck label="確認しました（全口座の借金を精算し、取り消せません）" />
-            </ActionForm>
+            </ActionForm>}
           </div>
         )}
       </div>

@@ -31,7 +31,7 @@ export async function endSession(kind: TokenKind): Promise<void> {
   store.delete(COOKIE_NAME[kind]);
 }
 
-/** セッションの主体（カジノなら学籍番号、実行委員ならメール）。無効なら null */
+/** セッションの主体（カジノならユーザーID、実行委員ならメール）。無効なら null */
 export async function readSession(kind: TokenKind): Promise<string | null> {
   const store = await cookies();
   const raw = store.get(COOKIE_NAME[kind])?.value;
@@ -39,7 +39,7 @@ export async function readSession(kind: TokenKind): Promise<string | null> {
   return verifyToken(sessionSecret(), raw, kind, nowSec())?.subject ?? null;
 }
 
-/** カジノ入場済みの学籍番号を返す。未入場なら /casino/enter へ */
+/** カジノ入場済みのユーザーIDを返す。未入場なら /casino/enter へ */
 export async function requireCasinoStudent(): Promise<string> {
   const id = await readSession("casino");
   if (!id) redirect("/casino/enter");

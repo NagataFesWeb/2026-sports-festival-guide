@@ -10,6 +10,7 @@ import { KIND_LABELS, MARKET_STATUS_LABELS } from "./labels";
 import { MarketWinnerForm, type WinnerOption } from "./MarketWinnerForm";
 import { ResultEntryForm, type OrderOption } from "./ResultEntryForm";
 import { ScoreEntryForm } from "./ScoreEntryForm";
+import Link from "next/link";
 
 interface Props {
   events: Event[];
@@ -18,6 +19,7 @@ interface Props {
   markets: Market[];
   /** 現在の総合順位（全体優勝の目安として出す） */
   standings: StandingRow[];
+  selectedEventId?: string;
 }
 
 function toOptions(teams: readonly Team[]): OrderOption[] {
@@ -50,25 +52,41 @@ function ConfirmedResult({ result, nameOf }: { result: EventResult; nameOf: (id:
   );
 }
 
-export function ResultsTab({ events, teams, results, markets, standings }: Props) {
+export function ResultsTab({ events, teams, results, markets, standings, selectedEventId }: Props) {
   const nameById = new Map(teams.map((t) => [t.id, `${t.num} ${t.name}`]));
   const nameOf = (id: string): string => nameById.get(id) ?? id;
   const options = toOptions(teams);
   const teamWinnerOptions: WinnerOption[] = teams.map((t) => ({ id: t.id, num: t.num, name: t.name, color: t.color }));
   const overall = markets.find((m) => m.type === "overall");
   const customMarkets = markets.filter((m) => m.type === "custom");
+  const eligible = events.filter(event =>
+    (event.kind !== "ceremony" && event.kind !== "club") || markets.some(m => m.eventId === event.id),
+  );
+  const completed = (event: Event) => event.heats.filter(heat => results.some(r => r.eventId === event.id && r.heatId === heat.id)).length;
+  const selected = eligible.find(event => event.id === selectedEventId)
+    ?? eligible.find(event => completed(event) < event.heats.length)
+    ?? eligible[0];
 
   return (
     <section className="grid gap-4">
       <div className="adm-card">
-        <h2 className="adm-title">種目の結果</h2>
+        <h2 className="adm-title">結果入力 — 種目を選択</h2>
         <p className="adm-note">
           ヒートごとに確定します。順位点のある種目は着順を、順位点が無い種目（玉入れ・棒引き）は得点を入力してください。確定すると紐づく
           Market が同時に精算されます（配当と利子はサーバー側で計算します）。
         </p>
       </div>
 
-      {events.map((event) => {
+      <nav aria-label="結果入力する種目" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {eligible.map(event => <Link key={event.id} href={`/admin?tab=results&event=${encodeURIComponent(event.id)}`}
+          className="adm-result-link" aria-current={selected?.id === event.id ? "page" : undefined}>
+          <strong>{event.no} {event.name}</strong>
+          <span>{completed(event)} / {event.heats.length} ヒート確定 ・ {event.rankPoints.length ? "着順を入力" : "得点を入力"} →</span>
+        </Link>)}
+      </nav>
+      {eligible.length === 0 && <div className="adm-card"><p>結果入力できる種目がありません。「種目」から競技とヒートを登録してください。</p><Link href="/admin?tab=events" className="adm-btn">種目を登録 →</Link></div>}
+
+      {(selected ? [selected] : []).map((event) => {
         const scoreMode = event.rankPoints.length === 0;
         // 式典・部活動の種目（開会式・部行進など）はクラス得点が無いので結果入力の対象外。
         // ただし Market が紐づいていれば（例外的に賭けの対象にした場合）表示する

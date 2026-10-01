@@ -7,6 +7,7 @@
 | [spec.md](spec.md) | 機能・受け入れ条件・タスク（契約書） |
 | [data-model.md](data-model.md) | データモデル（エンティティ・パリミュチュエル計算・借金/利子ロジック） |
 | [ui.md](ui.md) | 画面一覧・遷移 |
+| [casino-operations.md](casino-operations.md) | カジノの前日準備・SQL更新・当日操作・通信障害からの復旧・検証記録 |
 | [ground-guide/README.md](ground-guide/README.md) | DB不要の3D集合案内・連携方法・個人情報を除いた配置図・GPS位置合わせ |
 | [DESIGN.festival.md](DESIGN.festival.md) | 表画面「灼熱の青春」のデザイントークン・シグネチャ・不変条件 |
 | [DESIGN.underground.md](DESIGN.underground.md) | 裏画面（カジノ）のデザイントークン・構成・操作体系 |

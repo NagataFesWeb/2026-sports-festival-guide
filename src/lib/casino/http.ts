@@ -14,7 +14,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   account_not_found: 404,
   // 入場・セッション
   unauthorized: 401,
-  not_in_roster: 404,
+  invalid_user_id: 422,
   already_registered: 409,
   wrong_password: 401,
   invalid_password: 422,
@@ -61,7 +61,7 @@ export function parseCreditInput(body: unknown): CreditInput | null {
 }
 
 export interface EnterInput {
-  studentId: string;
+  userId: string;
   password: string;
   mode: EnterMode;
   /** 口座作成時のニックネーム。login では無視される。妥当性は nickname.ts 側で判定する */
@@ -71,12 +71,12 @@ export interface EnterInput {
 /** 入場（/api/casino/enter）のボディ */
 export function parseEnterInput(body: unknown): EnterInput | null {
   if (typeof body !== "object" || body === null) return null;
-  const { studentId, password, mode, nickname } = body as Record<string, unknown>;
-  if (typeof studentId !== "string" || typeof password !== "string") return null;
+  const { userId, password, mode, nickname } = body as Record<string, unknown>;
+  if (typeof userId !== "string" || typeof password !== "string") return null;
   if (mode !== "login" && mode !== "register") return null;
-  const id = studentId.trim();
+  const id = userId.trim();
   if (id.length === 0 || id.length > 32) return null;
-  return { studentId: id, password, mode, nickname: typeof nickname === "string" ? nickname : "" };
+  return { userId: id, password, mode, nickname: typeof nickname === "string" ? nickname : "" };
 }
 
 /** リクエストの JSON を読む（壊れていれば null） */
@@ -86,4 +86,12 @@ export async function readJson(req: Request): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+/** 再送識別子は認証済み口座・操作ごとに分離する。未指定の旧クライアントも許容する */
+export function requestKey(req: Request, scope: string): string | undefined | null {
+  const id = req.headers.get("Idempotency-Key");
+  if (id === null) return undefined;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+  return `${scope}:${id}`;
 }

@@ -2,6 +2,7 @@
 // モックのstartGate/gateStepに合わせ、接続文字列とバーを順に表示する。
 import { useEffect, useRef, useState } from "react";
 import { useSound } from "./sound";
+import { isMotionReduced } from "@/components/SiteMotion";
 const SCRIPT = ["NAGATA SYSTEMS", "PRIVATE NETWORK", "CONNECTING TO NODE 79...", "", "CONNECTION ESTABLISHED"];
 export function GateSequence({ onComplete }: { onComplete: () => void }) {
   const [shown, setShown] = useState<string[]>([]);
@@ -21,7 +22,7 @@ export function GateSequence({ onComplete }: { onComplete: () => void }) {
       if (done) { index++; char = 0; latest.current.blip(1500, .012, "square"); }
       timer = setTimeout(step, done ? 42 : 18);
     };
-    timer = setTimeout(matchMedia("(prefers-reduced-motion: reduce)").matches ? () => latest.current.onComplete() : step, 300);
+    timer = setTimeout(isMotionReduced() ? () => latest.current.onComplete() : step, 300);
     return () => clearTimeout(timer);
   }, []);
   return <div className="ug-gate-script">{SCRIPT.map((_, i) => i === 3 ? <div key={i} className="ug-gate-bar" style={{ visibility: shown[3] ? "visible" : "hidden" }}>{shown[3] && <div />}</div> : <div key={i} className={i === 4 ? "text-lcd-sel" : i < 2 ? "text-lcd-dim" : "text-lcd-text"}>{shown[i]}{shown.length - 1 === i && <span className="text-lcd-hi">█</span>}</div>)}</div>;

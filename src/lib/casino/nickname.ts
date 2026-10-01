@@ -17,7 +17,7 @@ export function isValidNickname(nickname: string): boolean {
   return true;
 }
 
-/** ニックネームが登録されていればそれを、無ければ fallback（氏名や学籍番号）を表示名にする */
+/** ニックネームが登録されていればそれを、無ければ fallback（ユーザーID）を表示名にする */
 export function displayNameOf(nickname: string, fallback: string): string {
   return nickname !== "" ? nickname : fallback;
 }
