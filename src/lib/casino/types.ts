@@ -41,7 +41,7 @@ export interface Market {
   status: MarketStatus;
   /** 確定着順（先頭が勝者）。settled のときのみ */
   resultOrder: string[] | null;
-  /** 旧DBとの保存・競合照合用。実際の三連単は odds.ts の50倍固定 */
+  /** 旧DBとの保存・競合照合用。実際の三連単は odds.ts の出場組数から求める最低倍率のプール方式 */
   trifectaOddsDefault?: number;
   /** 旧DBの個別倍率。互換性のため保持するが新しい払戻には使わない */
   trifectaOddsOverrides?: Record<string, number>;

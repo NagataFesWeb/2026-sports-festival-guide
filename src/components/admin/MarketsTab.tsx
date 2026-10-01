@@ -9,7 +9,7 @@ import {
 import { formatDateTime, toDateTimeLocal } from "@/lib/admin/datetime";
 import type { MarketSummaryRow } from "@/lib/admin/service";
 import { formatPoints } from "@/lib/casino/format";
-import { DEFAULT_TRIFECTA_ODDS, MINIMUM_ODDS } from "@/lib/casino/odds";
+
 import { ActionForm } from "./ActionForm";
 import { MARKET_STATUS_LABELS, MARKET_TYPE_LABELS } from "./labels";
 
@@ -117,7 +117,7 @@ export function MarketsTab({ rows }: { rows: MarketSummaryRow[] }) {
 
       <div className="adm-card">
         <h2 className="adm-title">払戻ルール</h2>
-        <p className="adm-note">単勝・複勝は最低{MINIMUM_ODDS}倍。三連単は全組み合わせ{DEFAULT_TRIFECTA_ODDS}倍固定です。参加人数が少なくても適用し、倍率の個別変更は行いません。</p>
+        <p className="adm-note">最低倍率は単勝＝選択肢数、複勝＝選択肢数÷3（8組なら約2.67倍）、三連単＝出場組数×（出場組数−1）×（出場組数−2）倍（8組なら336倍）です。紅白2択の単勝は2倍。全賭式で賭け金に応じて最低倍率以上に変動します。</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

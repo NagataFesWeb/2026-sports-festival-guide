@@ -23,6 +23,7 @@ export function MyEntries({ entries, studentId, agenda, updating = false }: {
       <p className={styles.day}><time dateTime={FESTIVAL_DAY.date}>{FESTIVAL_DAY.dateLabel}</time></p>
       <div className={styles.morning}><strong>{FESTIVAL_DAY.arrival} 登校完了</strong><span>{FESTIVAL_DAY.gathering} グラウンド集合</span><span>{FESTIVAL_DAY.rollCall} 点呼完了</span></div>
     </div>
+    <p className={styles.notice}><strong>ご注意：</strong>この案内はあくまでも参考情報です。正確な情報は演技台帳をご確認ください。</p>
     {entries === null && <p className={styles.notice} role="status">この学籍番号は出場競技表にありません。全員参加の案内を表示しています。番号を確認し、正しい場合は実行委員に伝えてください。</p>}
     {updating && <p className={styles.update} role="status">台帳の案内を表示中。実行委員の最新案内を確認しています…</p>}
     <ol className={styles.list}>

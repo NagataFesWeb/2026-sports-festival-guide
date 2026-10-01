@@ -1,8 +1,18 @@
-// 単勝・複勝は最低5倍のプール方式、三連単は50倍固定。計算式は docs/data-model.md を参照
+// 全賭式をプールで計算する。全賭式の最低倍率は均等な的中確率の逆数。
 import type { Bet, BetKind } from "./types";
 
-export const MINIMUM_ODDS = 5;
-export const DEFAULT_TRIFECTA_ODDS = 50;
+/** 旧DBの既定値にも使う8組の基準。実際の最低倍率はMarketの選択肢数から計算する */
+export const DEFAULT_TRIFECTA_ODDS = 8 * 7 * 6;
+
+/** 全対象が同じ強さの場合の的中確率を全賭式の最低保証に使う */
+export function minimumOdds(kind: BetKind, optionCount: number = 8): number {
+  if (!Number.isInteger(optionCount) || optionCount < 1) throw new RangeError("選択肢数は1以上の整数が必要です");
+  if (kind === "trifecta") {
+    if (optionCount < 3) throw new RangeError("三連単には3つ以上の選択肢が必要です");
+    return optionCount * (optionCount - 1) * (optionCount - 2);
+  }
+  return kind === "place" ? optionCount / Math.min(PLACE_SLOTS, optionCount) : optionCount;
+}
 
 /** 賭式ごとのプール（selection キー → 賭け金合計） */
 export type Pool = Record<string, number>;
@@ -32,17 +42,14 @@ export function poolTotal(pool: Pool): number {
 /** 複勝で払戻対象になる着順の数 */
 export const PLACE_SLOTS = 3;
 
-/**
- * 見込み倍率。単勝・複勝は賭けが無くても最低5倍、三連単は常に50倍。
- * - 単勝: 全賭け金 ÷ 対象への賭け金
- * - 複勝: (全賭け金 ÷ 3) ÷ 対象への賭け金（3着以内の3対象でプールを等分する前提の見込み）
- */
-export function estimateOdds(pool: Pool, kind: BetKind, key: string): number {
-  if (kind === "trifecta") return DEFAULT_TRIFECTA_ODDS;
+/** 見込み倍率。全ユーザーの同じ賭式のプールを使い、最低保証を適用する */
+export function estimateOdds(pool: Pool, kind: BetKind, key: string, optionCount: number = 8): number {
+  const minimum = minimumOdds(kind, optionCount);
   const stake = pool[key] ?? 0;
-  if (stake <= 0) return MINIMUM_ODDS;
+  if (stake <= 0) return minimum;
   const total = poolTotal(pool);
-  return Math.max(MINIMUM_ODDS, kind === "place" ? total / PLACE_SLOTS / stake : total / stake);
+  const slots = kind === "place" ? Math.min(PLACE_SLOTS, optionCount) : 1;
+  return Math.max(minimum, total / slots / stake);
 }
 
 /** 見込み払戻額（端数切り捨て）。倍率が出ないときは null */
@@ -109,15 +116,16 @@ function hitKeys(kind: BetKind, order: readonly string[]): string[] {
 
 /**
  * 結果確定時の配当を bet.id ごとに返す（外れは 0、端数は各ベットで切り捨て）。
- * 賭式ごとに独立したプールで精算する（ただし三連単は固定倍率）。
- * - 単勝: プール全額を的中ベットで按分し、最低5倍を保証
- * - 複勝: プールを「賭けがある的中対象の数」で等分し、各対象で按分。最低5倍を保証
- * - 三連単: 参加人数・旧DBの個別設定にかかわらず50倍で払戻
+ * 賭式ごとに独立したプールで精算する。
+ * - 単勝: プール全額を的中ベットで按分し、選択肢数と同じ倍率を最低保証
+ * - 複勝: プールを「賭けがある的中対象の数」で等分し、各対象で按分。選択肢数÷的中枠数を最低保証
+ * - 三連単: プール全額を的中ベットで按分し、選択肢数から求めた順列数の倍率を最低保証（旧DB設定は使わない）
  * 的中ベットが 1 件も無い賭式のプールは没収（配当 0）
  */
 export function settlePayouts(
   bets: readonly Bet[],
   order: readonly string[],
+  optionCount: number = 8,
 ): Map<string, number> {
   const payouts = new Map<string, number>();
   const kinds: BetKind[] = ["win", "place", "trifecta"];
@@ -132,7 +140,7 @@ export function settlePayouts(
       const hit = hits.includes(key);
       payouts.set(
         b.id,
-        hit ? Math.floor((kind === "trifecta" ? DEFAULT_TRIFECTA_ODDS : Math.max(MINIMUM_ODDS, share / pool[key])) * b.amount) : 0,
+        hit ? Math.floor(Math.max(minimumOdds(kind, optionCount), share / pool[key]) * b.amount) : 0,
       );
     }
   }

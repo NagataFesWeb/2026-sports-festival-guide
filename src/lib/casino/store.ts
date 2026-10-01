@@ -11,7 +11,7 @@ import { allowedKinds, cancelBet, effectiveStatus, placeBet, type BetError, type
 import { borrow, BORROW_MAX, INTEREST_RATE, repay, type DebtError } from "./debt";
 import { isValidNickname } from "./nickname";
 import { isValidUserId } from "./user-id";
-import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS } from "./odds";
+import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS, minimumOdds } from "./odds";
 import { rankAccounts } from "./settlement";
 import type { Bet, BetKind, CasinoAccountRecord, Market } from "./types";
 import type {
@@ -93,7 +93,7 @@ export async function getMarketView(marketId: string, studentId: string, now: Da
       status: effectiveStatus(market, now),
       kinds: allowedKinds(market),
       resultOrder: market.resultOrder,
-      trifectaOddsDefault: DEFAULT_TRIFECTA_ODDS,
+      trifectaOddsDefault: allowedKinds(market).includes("trifecta") ? minimumOdds("trifecta", market.options.length) : DEFAULT_TRIFECTA_ODDS,
       trifectaOddsOverrides: {},
     },
     pools: Object.fromEntries(kinds.map((k) => [k, buildPool(bets, k)])) as Record<BetKind, Record<string, number>>,

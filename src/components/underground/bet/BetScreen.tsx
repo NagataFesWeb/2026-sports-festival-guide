@@ -6,8 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { parseStake } from "@/lib/casino/betting";
 import { formatClock, formatCountdown, formatPoints } from "@/lib/casino/format";
 import {
-  DEFAULT_TRIFECTA_ODDS,
-  MINIMUM_ODDS,
+  minimumOdds,
   estimateOdds,
   estimateReturn,
   formatOdds,
@@ -102,7 +101,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
       ? [target]
       : null;
   const pool = view.pools[kind];
-  const curOdds = selection ? estimateOdds(pool, kind, selectionKey(selection)) : null;
+  const curOdds = selection ? estimateOdds(pool, kind, selectionKey(selection), m.options.length) : null;
   const amount = parseStake(stakeStr);
   const stakeOk = amount !== null && amount <= balance;
 
@@ -466,7 +465,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
   const finalNames = [0, 1, 2].map((i) => (finalIds[i] ? nameOf(finalIds[i]) : "―"));
 
   const oddsRows = m.options.map((o, i) => {
-    const odds = estimateOdds(pool, kind, o.id);
+    const odds = estimateOdds(pool, kind, o.id, m.options.length);
     const mine = sumStakes(view.myBets, kind, o.id);
     return {
       id: o.id,
@@ -498,7 +497,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           const used = tri.indexOf(o.id);
           const here = used === picking - 1;
           const blocked = used >= 0 && !here;
-          const winOdds = estimateOdds(view.pools.win, "win", o.id);
+          const winOdds = estimateOdds(view.pools.win, "win", o.id, m.options.length);
           return {
             id: o.id,
             num: o.num,
@@ -513,7 +512,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
     id: o.id,
     num: o.num,
     name: o.name,
-    odds: formatOdds(estimateOdds(view.pools.win, "win", o.id)),
+    odds: formatOdds(estimateOdds(view.pools.win, "win", o.id, m.options.length)),
     pool: formatPoints(view.pools.win[o.id] ?? 0),
     selected: target === o.id,
     flash: flash.includes(`win:${o.id}`),
@@ -637,7 +636,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           clock={open ? formatCountdown(remaining) : "--:--:--"}
           urgent={open && remaining < URGENT_MS}
         />
-        <p className="mt-1 font-jp text-[11px] leading-relaxed text-lcd-dim">{m.kinds.length > 1 ? `単勝・複勝 最低${MINIMUM_ODDS}倍 ／ 三連単 ${DEFAULT_TRIFECTA_ODDS}倍固定` : `単勝 最低${MINIMUM_ODDS}倍`}</p>
+        <p className="mt-1 font-jp text-[11px] leading-relaxed text-lcd-dim">{m.kinds.length > 1 ? `単勝 最低${formatOdds(minimumOdds("win", m.options.length))}倍 ／ 複勝 最低${formatOdds(minimumOdds("place", m.options.length))}倍 ／ 三連単 最低${minimumOdds("trifecta", m.options.length)}倍` : `単勝 最低${formatOdds(minimumOdds("win", m.options.length))}倍`}</p>
         {m.kinds.length > 1 && <BetTypeTabs kinds={m.kinds} current={kind} onSelect={selectKind} />}
         <p className="mt-2 font-jp text-[12px] leading-relaxed text-lcd-text">
           {isCustom ? "二択：正しいと思う方を選び、結果が合えば的中。" : `${KIND_JP[kind]}：${KIND_DESCRIPTION[kind]}`}
@@ -646,7 +645,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
         {status === "settled" && winnerId && (
           <SettledPanel
             winner={nameOf(winnerId)}
-            payRate={formatOdds(estimateOdds(view.pools.win, "win", winnerId))}
+            payRate={formatOdds(estimateOdds(view.pools.win, "win", winnerId, m.options.length))}
             myResult={myPayout > 0 ? `+${formatPoints(myPayout)} C` : view.myBets.length > 0 ? "NO HIT" : "―"}
             hit={myPayout > 0}
           />
@@ -681,9 +680,9 @@ export function BetScreen({ initial }: { initial: MarketView }) {
           minHint={open ? (isTri ? "1着・2着・3着を指定する" : "対象をタップして選択する") : status === "settled" ? "結果確定済み" : "締切済み"}
           kindLabel={isCustom ? "二択" : KIND_JP[kind]}
           selLabel={isTri ? tri.map((id) => (id ? numOf(id) : "－")).join(" → ") : target ? `${numOf(target)} ${nameOf(target)}` : ""}
-          oddsLabel={isTri ? "FIXED ODDS" : "ODDS"}
+          oddsLabel="ODDS"
           oddsText={formatOdds(curOdds)}
-          oddsNote={isTri ? `着順まで的中すると賭け金の${DEFAULT_TRIFECTA_ODDS}倍。参加人数で変動しません。` : `的中時は最低${MINIMUM_ODDS}倍。${MINIMUM_ODDS}倍を超える倍率は他のベットで変動します。`}
+          oddsNote={`的中時は最低${formatOdds(minimumOdds(kind, m.options.length))}倍（表示は小数2桁で切り捨て）。同じ賭式への追加・取消で変動します。表示は見込みで、結果確定時に払戻額が決まります。`}
           stakeStr={stakeStr}
           stakeOk={stakeOk}
           onStake={editStake}

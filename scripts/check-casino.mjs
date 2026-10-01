@@ -36,7 +36,7 @@ for (const kind of ["place", "trifecta"]) {
   const selection = kind === "trifecta" ? ["t1", "t2", "t3"] : ["t1"];
   const placed = await call(`${path}/bets`, "POST", { kind, selection, amount: 100 }, randomUUID());
   assert.equal(placed.status, 200);
-  assert.equal(placed.data.view.market.trifectaOddsDefault, 50);
+  assert.equal(placed.data.view.market.trifectaOddsDefault, 336);
   assert.deepEqual(placed.data.view.market.trifectaOddsOverrides, {});
   assert.equal(placed.data.view.account.pointsBalance, 900);
   const [ticket] = placed.data.view.myBets;
@@ -59,4 +59,4 @@ const times = await Promise.all(Array.from({ length: 30 }, async () => {
 times.sort((a, b) => a - b);
 assert.equal((await call("/api/casino/logout", "POST")).status, 200);
 assert.equal((await call(path)).status, 401);
-console.log(`CASINO API PASS: 登録・認証・単勝・複勝・三連単50倍・取消・締切・借入れ・返済・再送・ログアウト。30同時取得 p95=${Math.round(times[28])}ms（ローカル）`);
+console.log(`CASINO API PASS: 登録・認証・単勝・複勝・三連単最低336倍・取消・締切・借入れ・返済・再送・ログアウト。30同時取得 p95=${Math.round(times[28])}ms（ローカル）`);

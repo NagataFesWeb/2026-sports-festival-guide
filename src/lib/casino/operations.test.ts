@@ -10,7 +10,7 @@ beforeEach(() => resetMemoryState());
 afterEach(() => vi.restoreAllMocks());
 
 describe("当日の同時操作と障害復旧", () => {
-  it.each(["win", "place", "trifecta"] as const)("参加者1人の%sを登録から結果確定まで通し、最低・固定倍率で払う", async (kind) => {
+  it.each(["win", "place", "trifecta"] as const)("参加者1人の%sを登録から結果確定まで通し、最低倍率で払う", async (kind) => {
     const repo = getRepository();
     const now = new Date();
     const created = await createEventMarket(repo, "ev-05", "g3", new Date(now.getTime() + 3600000).toISOString());
@@ -23,7 +23,7 @@ describe("当日の同時操作と障害復旧", () => {
     const order = ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"];
     expect((await confirmEventResult(repo, "ev-05", "g3", { order })).ok).toBe(true);
     const [ticket] = await repo.listBets({ marketId: created.value.id, studentId: "solo-check" });
-    const payout = kind === "trifecta" ? 5000 : 500;
+    const payout = kind === "trifecta" ? 33600 : kind === "place" ? 266 : 800;
     expect(ticket.payoutAmount).toBe(payout);
     expect((await repo.getAccount("solo-check"))?.pointsBalance).toBe(900 + payout);
     expect((await confirmEventResult(repo, "ev-05", "g3", { order })).ok).toBe(true);

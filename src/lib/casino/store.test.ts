@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getRepository } from "../db";
 import { resetMemoryState } from "../db/memory";
+import { estimateOdds } from "./odds";
 import {
   authenticateAccount,
   borrowPoints,
@@ -37,6 +38,55 @@ beforeEach(() => {
 });
 
 describe("submitBet", () => {
+  it("三連単も他ユーザーの購入と取消で336倍を超えて変動する", async () => {
+    const repository = getRepository();
+    for (const ticket of await repository.listBets({ marketId: OPEN })) await repository.deleteBet(ticket.id);
+    for (const [id, selection, amount] of [
+      ["tri-hit", ["t1", "t2", "t3"], 100],
+      ["tri-other", ["t2", "t1", "t3"], 79900],
+    ] as const) {
+      await repository.insertBet({ id, marketId: OPEN, studentId: "other", kind: "trifecta",
+        selection: [...selection], amount, payoutAmount: null, createdAt: now().toISOString() });
+    }
+    expect((await registerAccount("tri-observer", "test-pass", "三連単確認")).ok).toBe(true);
+    const placed = await submitBet(OPEN, ME, { kind: "trifecta", selection: ["t1", "t2", "t3"], amount: 100 }, now());
+    expect(placed.ok).toBe(true);
+    const after = await getMarketView(OPEN, "tri-observer", now());
+    expect(estimateOdds(after!.pools.trifecta, "trifecta", "t1>t2>t3")).toBe(400.5);
+    const [ticket] = await repository.listBets({ marketId: OPEN, studentId: ME });
+    expect((await withdrawBet(ticket.id, ME, now())).ok).toBe(true);
+    const canceled = await getMarketView(OPEN, "tri-observer", now());
+    expect(estimateOdds(canceled!.pools.trifecta, "trifecta", "t1>t2>t3")).toBe(800);
+  });
+  it.each(["win", "place"] as const)("%sは別ユーザーの追加・取消で全員の倍率が更新され、他の賭式は変わらない", async (kind) => {
+    const repository = getRepository();
+    // 独立した8組の均等プールを使い、最低保証より上での変動を確認する。
+    for (const ticket of await repository.listBets({ marketId: OPEN })) await repository.deleteBet(ticket.id);
+    for (let i = 1; i <= 8; i++) {
+      await repository.insertBet({ id: `pool-${i}`, marketId: OPEN, studentId: `other-${i}`, kind,
+        selection: [`t${i}`], amount: 100, payoutAmount: null, createdAt: now().toISOString() });
+    }
+    expect((await registerAccount("odds-observer", "test-pass", "倍率確認")).ok).toBe(true);
+    const before = await getMarketView(OPEN, "odds-observer", now());
+    expect(before).not.toBeNull();
+    if (!before) return;
+    const base = estimateOdds(before.pools[kind], kind, "t1");
+    const placed = await submitBet(OPEN, ME, { kind, selection: ["t2"], amount: 400 }, now());
+    expect(placed.ok).toBe(true);
+    const after = await getMarketView(OPEN, "odds-observer", now());
+    expect(after).not.toBeNull();
+    if (!after || !placed.ok) return;
+    expect(estimateOdds(after.pools[kind], kind, "t1")).toBeCloseTo(base * 1.5);
+    expect(estimateOdds(after.pools[kind], kind, "t2")).toBeCloseTo(base);
+    expect(after.pools).toEqual(placed.view.pools);
+    expect(after.myBets).toHaveLength(0);
+    const otherKind = kind === "win" ? "place" : "win";
+    expect(after.pools[otherKind]).toEqual(before.pools[otherKind]);
+    const [ticket] = await repository.listBets({ marketId: OPEN, studentId: ME });
+    expect((await withdrawBet(ticket.id, ME, now())).ok).toBe(true);
+    const canceled = await getMarketView(OPEN, "odds-observer", now());
+    expect(canceled?.pools).toEqual(before.pools);
+  });
   it("受付中の Market にベットすると残高が減り、ベットが記録される", async () => {
     const repository = getRepository();
     const before = await repository.getAccount(ME);
@@ -279,14 +329,14 @@ describe("authenticateAccount", () => {
 });
 
 describe("表示用データ", () => {
-  it("旧DBの三連単倍率が残っていても表示APIは50倍・個別設定なしを返す", async () => {
+  it("旧DBの三連単倍率が残っていても表示APIは最低336倍・個別設定なしを返す", async () => {
     const repo = getRepository();
     const stored = (await repo.getMarket(OPEN))!;
-    await repo.upsertMarket({ ...stored, trifectaOddsDefault: 336, trifectaOddsOverrides: { "t1>t2>t3": 12.34 } });
+    await repo.upsertMarket({ ...stored, trifectaOddsDefault: 100, trifectaOddsOverrides: { "t1>t2>t3": 12.34 } });
     const view = await getMarketView(OPEN, ME, now());
-    expect(view?.market.trifectaOddsDefault).toBe(50);
+    expect(view?.market.trifectaOddsDefault).toBe(336);
     expect(view?.market.trifectaOddsOverrides).toEqual({});
-    expect((await repo.getMarket(OPEN))?.trifectaOddsDefault).toBe(336);
+    expect((await repo.getMarket(OPEN))?.trifectaOddsDefault).toBe(100);
   });
 
   it("確定済みの旧配当は新しい倍率で再計算せず履歴と残高を保持する", async () => {

@@ -3,7 +3,7 @@
 import { effectiveStatus } from "@/lib/casino/betting";
 import { HORSE_OPTIONS, isHorseEvent } from "@/lib/casino/event-rules";
 import { finalizeAccount } from "@/lib/casino/debt";
-import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS } from "@/lib/casino/odds";
+import { buildPool, poolTotal, minimumOdds } from "@/lib/casino/odds";
 import { settleMarket } from "@/lib/casino/settle";
 import type { Market, MarketOption, MarketStatus } from "@/lib/casino/types";
 import { getRepository, type Repository } from "@/lib/db";
@@ -300,7 +300,7 @@ export async function createEventMarket(
     status: "open",
     resultOrder: null,
     ...(event.category === "race" && teams.length >= 3
-      ? { trifectaOddsDefault: DEFAULT_TRIFECTA_ODDS, trifectaOddsOverrides: {} }
+      ? { trifectaOddsDefault: minimumOdds("trifecta", teams.length), trifectaOddsOverrides: {} }
       : {}),
   };
   await repo.upsertMarket(market);

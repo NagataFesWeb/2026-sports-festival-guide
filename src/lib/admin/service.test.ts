@@ -203,11 +203,11 @@ describe("全体優勝・custom Market の確定", () => {
 });
 
 describe("Market の作成・締切", () => {
-  it("三連単は50倍固定・個別倍率なしでMarketを作成する", async () => {
+  it("三連単は最低336倍・個別倍率なしでMarketを作成する", async () => {
     const created = await createEventMarket(repo, "ev-05", "g3", "2026-10-02T10:00");
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    expect(created.value.trifectaOddsDefault).toBe(50);
+    expect(created.value.trifectaOddsDefault).toBe(336);
     expect((await repo.getMarket(created.value.id))?.trifectaOddsOverrides).toEqual({});
   });
 

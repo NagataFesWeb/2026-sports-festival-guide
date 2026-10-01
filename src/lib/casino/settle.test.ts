@@ -64,7 +64,7 @@ function account(over: Partial<CasinoAccountRecord> = {}): CasinoAccountRecord {
 }
 
 describe("結果確定", () => {
-  it("三連単は旧DBの既定・個別倍率を無視し50倍で口座残高まで精算する", () => {
+  it("三連単は旧DBの既定・個別倍率を無視し4組の最低24倍で口座残高まで精算する", () => {
     const selection = ["t1", "t2", "t3"];
     const winner = bet({ id: "tri-hit", kind: "trifecta", selection, amount: 100 });
     const loser = bet({ id: "tri-miss", kind: "trifecta", selection: ["t2", "t1", "t3"], amount: 500 });
@@ -77,8 +77,8 @@ describe("結果確定", () => {
     });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.value.payouts).toEqual([{ id: "tri-hit", payoutAmount: 5000 }, { id: "tri-miss", payoutAmount: 0 }]);
-    expect(r.value.accounts[0]?.pointsBalance).toBe(6000);
+    expect(r.value.payouts).toEqual([{ id: "tri-hit", payoutAmount: 2400 }, { id: "tri-miss", payoutAmount: 0 }]);
+    expect(r.value.accounts[0]?.pointsBalance).toBe(3400);
   });
 
   it("的中者は配当を受け取り、ベットしていない借金持ちにも利子が付く", () => {
@@ -98,8 +98,8 @@ describe("結果確定", () => {
     expect(r.value.market.resultOrder).toEqual(["t1"]);
 
     const byId = new Map(r.value.accounts.map((a) => [a.studentId, a]));
-    // A: 的中。最低5倍で受け取り 500+500=1000
-    expect(byId.get("A")?.pointsBalance).toBe(1000);
+    // A: 的中。2択なので最低2倍で受け取り 500+200=700
+    expect(byId.get("A")?.pointsBalance).toBe(700);
     expect(byId.get("A")?.debtAmount).toBe(0);
     // B: 外れ。変化なしのため含まれない
     expect(byId.has("B")).toBe(false);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPool, estimateOdds, estimateReturn, formatOdds, settlePayouts, summarizeHits } from "./odds";
+import { buildPool, estimateOdds, estimateReturn, formatOdds, minimumOdds, settlePayouts, summarizeHits } from "./odds";
 import type { Bet, BetKind } from "./types";
 
 let seq = 0;
@@ -18,34 +18,75 @@ function bet(kind: BetKind, selection: string[], amount: number, studentId = "s"
 }
 
 describe("見込み倍率", () => {
-  it("単勝はプールで計算し、参加が少なくても最低5倍", () => {
-    const pool = buildPool([bet("win", ["t1"], 300), bet("win", ["t2"], 100)], "win");
-    expect(estimateOdds(pool, "win", "t1")).toBe(5);
-    expect(estimateOdds(pool, "win", "t2")).toBe(5);
+  it.each([[3, 6], [4, 24], [6, 120], [8, 336]])("三連単は%i組の順列数%iを最低倍率として表示・精算する", (count, permutations) => {
+    const ticket = bet("trifecta", ["a", "b", "c"], 100);
+    expect(minimumOdds("trifecta", count)).toBe(permutations);
+    expect(estimateOdds({}, "trifecta", "a>b>c", count)).toBe(permutations);
+    expect(estimateOdds({ "a>b>c": 100 }, "trifecta", "a>b>c", count)).toBe(permutations);
+    expect(settlePayouts([ticket], ["a", "b", "c"], count).get(ticket.id)).toBe(permutations * 100);
   });
 
-  it("賭けが無い対象にも最低5倍を表示", () => {
+  it("三連単は3組未満では成立しない", () => {
+    expect(() => minimumOdds("trifecta", 2)).toThrow(RangeError);
+  });
+  it.each([2, 4, 6, 8])("%i組の単勝・複勝の最低保証は均等な的中確率の逆数", (count) => {
+    expect(minimumOdds("win", count) * (1 / count)).toBeCloseTo(1);
+    expect(minimumOdds("place", count) * (Math.min(3, count) / count)).toBeCloseTo(1);
+  });
+
+  it("紅白の単勝は最低2倍で表示と精算が一致する", () => {
+    const ticket = bet("win", ["red"], 100);
+    expect(estimateOdds({ red: 100 }, "win", "red", 2)).toBe(2);
+    expect(settlePayouts([ticket], ["red", "white"], 2).get(ticket.id)).toBe(200);
+  });
+
+  it("三連単は336倍を超えると追加・取消によって変動し、最終プールで払う", () => {
+    const hit = bet("trifecta", ["a", "b", "c"], 100);
+    const miss = bet("trifecta", ["b", "a", "c"], 79900);
+    const extra = bet("trifecta", ["a", "b", "c"], 100);
+    expect(estimateOdds(buildPool([hit], "trifecta"), "trifecta", "a>b>c")).toBe(336);
+    expect(estimateOdds(buildPool([hit, miss], "trifecta"), "trifecta", "a>b>c")).toBe(800);
+    expect(estimateOdds(buildPool([hit, miss, extra], "trifecta"), "trifecta", "a>b>c")).toBe(400.5);
+    expect(settlePayouts([hit, miss, extra], ["a", "b", "c"]).get(hit.id)).toBe(40050);
+    expect(settlePayouts([hit, miss], ["a", "b", "c"]).get(hit.id)).toBe(80000);
+    expect(settlePayouts([hit, miss], ["a", "b", "c"]).get(miss.id)).toBe(0);
+  });
+  it("均等な8組のプールでは単勝8倍、複勝8/3倍で、空プールも賭式別になる", () => {
+    const pool = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`t${i + 1}`, 100]));
+    expect(estimateOdds(pool, "win", "t1")).toBe(8);
+    expect(estimateOdds(pool, "place", "t1")).toBeCloseTo(8 / 3);
+    expect(estimateOdds({}, "win", "t1")).toBe(8);
+    expect(estimateOdds({}, "place", "t1")).toBe(8 / 3);
+    expect(estimateOdds(pool, "place", "t9")).toBe(8 / 3);
+  });
+  it("単勝はプールで計算し、参加が少なくても最低8倍", () => {
+    const pool = buildPool([bet("win", ["t1"], 300), bet("win", ["t2"], 100)], "win");
+    expect(estimateOdds(pool, "win", "t1")).toBe(8);
+    expect(estimateOdds(pool, "win", "t2")).toBe(8);
+  });
+
+  it("賭けが無い対象にも最低8倍を表示", () => {
     const pool = buildPool([bet("win", ["t1"], 300)], "win");
-    expect(estimateOdds(pool, "win", "t9")).toBe(5);
+    expect(estimateOdds(pool, "win", "t9")).toBe(8);
     expect(formatOdds(null)).toBe("―");
   });
 
-  it("複勝は3分割の見込み倍率にも最低5倍を適用", () => {
+  it("複勝は3分割の見込み倍率にも最低8/3倍を適用", () => {
     const pool = buildPool([bet("place", ["t1"], 100), bet("place", ["t2"], 200)], "place");
-    expect(estimateOdds(pool, "place", "t1")).toBe(5);
-    expect(estimateOdds(pool, "place", "t2")).toBe(5);
+    expect(estimateOdds(pool, "place", "t1")).toBe(8 / 3);
+    expect(estimateOdds(pool, "place", "t2")).toBe(8 / 3);
   });
 
-  it("三連単は賭けが無い組み合わせも50倍固定", () => {
+  it("三連単は賭けが無い組み合わせも最低336倍", () => {
     const pool = buildPool(
       [bet("trifecta", ["a", "b", "c"], 100), bet("trifecta", ["b", "a", "c"], 300)],
       "trifecta",
     );
-    expect(estimateOdds(pool, "trifecta", "a>b>c")).toBe(50);
-    expect(estimateOdds(pool, "trifecta", "c>b>a")).toBe(50);
+    expect(estimateOdds(pool, "trifecta", "a>b>c")).toBe(336);
+    expect(estimateOdds(pool, "trifecta", "c>b>a")).toBe(336);
   });
 
-  it("5倍を超えるプール倍率はそのまま表示する", () => {
+  it("最低保証を超えるプール倍率はそのまま表示する", () => {
     expect(estimateOdds({ a: 100, b: 900 }, "win", "a")).toBe(10);
     expect(estimateOdds({ a: 100, b: 2000 }, "place", "a")).toBe(7);
   });
@@ -54,7 +95,7 @@ describe("見込み倍率", () => {
     const selection = kind === "trifecta" ? ["a", "b", "c"] : ["a"];
     const ticket = bet(kind, selection, 100);
     const odds = estimateOdds(buildPool([ticket], kind), kind, selection.join(">"));
-    expect(odds).toBe(kind === "trifecta" ? 50 : 5);
+    expect(odds).toBe(kind === "trifecta" ? 336 : kind === "place" ? 8 / 3 : 8);
     expect(settlePayouts([ticket], ["a", "b", "c"]).get(ticket.id)).toBe(estimateReturn(odds, 100));
   });
 
@@ -72,22 +113,22 @@ describe("見込み倍率", () => {
 });
 
 describe("結果確定時の配当", () => {
-  it("単勝：プールが小さくても的中者に5倍を払う", () => {
+  it("単勝：プールが小さくても的中者に8倍を払う", () => {
     const a = bet("win", ["t1"], 300, "A");
     const b = bet("win", ["t2"], 500, "B");
     const p = settlePayouts([a, b], ["t1", "t2", "t3"]);
-    expect(p.get(a.id)).toBe(1500);
+    expect(p.get(a.id)).toBe(2400);
     expect(p.get(b.id)).toBe(0);
   });
 
   it("単勝：的中が複数人なら賭け金比で按分し、各自切り捨て", () => {
     const a = bet("win", ["t1"], 100, "A");
     const b = bet("win", ["t1"], 200, "B");
-    const c = bet("win", ["t2"], 1700, "C");
+    const c = bet("win", ["t2"], 2300, "C");
     const p = settlePayouts([a, b, c], ["t1"]);
-    // 2000 / 300 = 6.666… 倍（5倍超は按分）
-    expect(p.get(a.id)).toBe(666);
-    expect(p.get(b.id)).toBe(1333);
+    // 2600 / 300 = 8.666… 倍（最低8倍超は按分）
+    expect(p.get(a.id)).toBe(866);
+    expect(p.get(b.id)).toBe(1733);
     expect(p.get(c.id)).toBe(0);
   });
 
@@ -99,16 +140,16 @@ describe("結果確定時の配当", () => {
     expect(p.get(b.id)).toBe(0);
   });
 
-  it("複勝：3着以内の各対象への払戻に最低5倍を適用", () => {
+  it("複勝：3着以内の各対象への払戻に最低8/3倍を適用", () => {
     const a = bet("place", ["t1"], 100);
     const b = bet("place", ["t2"], 200);
     const c = bet("place", ["t3"], 300);
     const d = bet("place", ["t4"], 600);
     const p = settlePayouts([a, b, c, d], ["t3", "t1", "t2", "t4"]);
-    // プールでは各400。最低5倍で500 / 1000 / 1500を払う
-    expect(p.get(a.id)).toBe(500);
-    expect(p.get(b.id)).toBe(1000);
-    expect(p.get(c.id)).toBe(1500);
+    // プールでは各400。t2・t3は最低8/3倍まで補填する
+    expect(p.get(a.id)).toBe(400);
+    expect(p.get(b.id)).toBe(533);
+    expect(p.get(c.id)).toBe(800);
     expect(p.get(d.id)).toBe(0);
   });
 
@@ -124,18 +165,18 @@ describe("結果確定時の配当", () => {
     const hit = bet("trifecta", ["t1", "t2", "t3"], 100);
     const swapped = bet("trifecta", ["t2", "t1", "t3"], 100);
     const p = settlePayouts([hit, swapped], ["t1", "t2", "t3", "t4"]);
-    expect(p.get(hit.id)).toBe(5000);
+    expect(p.get(hit.id)).toBe(33600);
     expect(p.get(swapped.id)).toBe(0);
   });
 
-  it("三連単：参加が1人でも多数でも50倍で払い戻す", () => {
+  it("三連単：参加が1人でも多数でも最低336倍で払い戻す", () => {
     const hit = bet("trifecta", ["t1", "t2", "t3"], 101);
     const swapped = bet("trifecta", ["t2", "t1", "t3"], 500);
     const custom = settlePayouts([hit, swapped], ["t1", "t2", "t3"]);
-    expect(custom.get(hit.id)).toBe(5050);
+    expect(custom.get(hit.id)).toBe(33936);
     expect(custom.get(swapped.id)).toBe(0);
     const fallback = settlePayouts([hit], ["t1", "t2", "t3"]);
-    expect(fallback.get(hit.id)).toBe(5050);
+    expect(fallback.get(hit.id)).toBe(33936);
   });
 
   it("賭式ごとに独立したプールで精算する", () => {
@@ -143,9 +184,9 @@ describe("結果確定時の配当", () => {
     const wl = bet("win", ["t2"], 100);
     const pl = bet("place", ["t2"], 50);
     const p = settlePayouts([w, wl, pl], ["t1", "t2", "t3"]);
-    expect(p.get(w.id)).toBe(500);
+    expect(p.get(w.id)).toBe(800);
     expect(p.get(wl.id)).toBe(0);
-    expect(p.get(pl.id)).toBe(250);
+    expect(p.get(pl.id)).toBe(133);
   });
 });
 
