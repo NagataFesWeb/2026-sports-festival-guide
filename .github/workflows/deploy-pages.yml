@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.pages.outputs.enabled }}
     env:
       ALLOW_MEMORY_DB: "1"
       DB_PERSIST: "0"
@@ -26,14 +28,24 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+      - name: Check optional Pages configuration
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          enabled=$(gh api repos/${{ github.repository }}/pages --jq '.build_type == "workflow"' 2>/dev/null || echo false)
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
       - uses: actions/configure-pages@v5
+        if: steps.pages.outputs.enabled == 'true'
       - run: npm ci
       - run: npm run build:pages
       - uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outputs.enabled == 'true'
         with:
           path: github-pages/out
 
   deploy:
+    if: needs.build.outputs.pages_enabled == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
