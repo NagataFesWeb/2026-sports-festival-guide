@@ -6,7 +6,7 @@ export type BetKind = "win" | "place" | "trifecta";
 /** overall=全体優勝 / event=種目別 / custom=紅白などの専用二択 */
 export type MarketType = "overall" | "event" | "custom";
 
-/** race=着順が付く競技（単勝・複勝・三連単）/ field=勝者のみの競技（単勝のみ） */
+/** race=リレーでは単勝・複勝・三連単 / field=単勝のみ。非リレーはraceでも単勝のみ */
 export type EventCategory = "race" | "field";
 
 export type MarketStatus = "open" | "closed" | "settled";

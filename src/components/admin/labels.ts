@@ -12,7 +12,7 @@ export const KIND_LABELS: Record<EventKind, string> = {
 
 /** 賭式の区分 */
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
-  race: "race（着順あり・三連単まで）",
+  race: "race（リレーは三連単まで・他は単勝）",
   field: "field（勝者のみ）",
 };
 

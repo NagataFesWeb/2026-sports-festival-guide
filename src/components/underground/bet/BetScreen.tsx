@@ -29,7 +29,7 @@ import { BetErrorPanel, type BetErrorView } from "./BetErrorPanel";
 import { BetSlip } from "./BetSlip";
 import { CustomChoice } from "./CustomChoice";
 import { BetTypeTabs, EventHeader, SettledPanel, StatusBar } from "./Header";
-import { KIND_JP, RANKS } from "./labels";
+import { KIND_DESCRIPTION, KIND_JP, RANKS } from "./labels";
 import { MyBets } from "./MyBets";
 import { OddsBoard } from "./OddsBoard";
 import { ResultReveal } from "./ResultReveal";
@@ -93,7 +93,7 @@ export function BetScreen({ initial }: { initial: MarketView }) {
   const status = m.status === "open" && remaining <= 0 ? "closed" : m.status;
   const open = status === "open";
   const isTri = kind === "trifecta";
-  const isCustom = m.type === "custom";
+  const isCustom = m.type === "custom" || m.options.length === 2;
   const selection: string[] | null = isTri
     ? tri[0] && tri[1] && tri[2]
       ? [tri[0], tri[1], tri[2]]
@@ -639,6 +639,9 @@ export function BetScreen({ initial }: { initial: MarketView }) {
         />
         <p className="mt-1 font-jp text-[11px] leading-relaxed text-lcd-dim">{m.kinds.length > 1 ? `単勝・複勝 最低${MINIMUM_ODDS}倍 ／ 三連単 ${DEFAULT_TRIFECTA_ODDS}倍固定` : `単勝 最低${MINIMUM_ODDS}倍`}</p>
         {m.kinds.length > 1 && <BetTypeTabs kinds={m.kinds} current={kind} onSelect={selectKind} />}
+        <p className="mt-2 font-jp text-[12px] leading-relaxed text-lcd-text">
+          {isCustom ? "二択：正しいと思う方を選び、結果が合えば的中。" : `${KIND_JP[kind]}：${KIND_DESCRIPTION[kind]}`}
+        </p>
 
         {status === "settled" && winnerId && (
           <SettledPanel

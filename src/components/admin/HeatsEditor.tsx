@@ -18,7 +18,7 @@ export function HeatsEditor({ heats }: { heats: readonly Heat[] }) {
   return (
     <div className="grid gap-2">
       <p className="adm-note">
-        着順・得点・Market はヒート単位で管理します。学年別レースは 3 行、総合で 1 つだけなら 1 行にします。
+        着順・Market はヒート単位で管理します。学年別レースは 3 行、総合で 1 つだけなら 1 行にします。
         結果を確定した後にヒートを消すと、その結果は集計から外れます。
       </p>
 

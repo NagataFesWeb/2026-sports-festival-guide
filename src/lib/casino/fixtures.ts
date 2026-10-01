@@ -310,7 +310,7 @@ export const SEED_EVENTS: Event[] = [
     name: "大縄跳び",
     en: "LONG ROPE JUMP",
     kind: "field",
-    category: "race",
+    category: "field",
     startTime: todayAt("13:25"),
     delayMin: 0,
     location: "フィールド",
@@ -356,7 +356,7 @@ export const SEED_EVENTS: Event[] = [
     name: "騎馬戦",
     en: "KIBASEN",
     kind: "field",
-    category: "race",
+    category: "field",
     startTime: todayAt("13:55"),
     delayMin: 0,
     location: "フィールド",
@@ -583,7 +583,7 @@ export function createFixtureState(now: Date): CasinoState {
     eventMarket("race-05-g2", "ev-05", "g2", "race", minutesFrom(now, 25)),
     eventMarket("field-06", "ev-06", "all", "field", minutesFrom(now, 38)),
     eventMarket("field-10", "ev-10", "all", "field", minutesFrom(now, 33)),
-    eventMarket("race-11", "ev-11", "all", "race", minutesFrom(now, 50)),
+    eventMarket("race-11", "ev-11", "all", "field", minutesFrom(now, 50), { options: RED_WHITE }),
     {
       id: "special-general", type: "custom", eventId: null, heatId: null, category: null, no: "#",
       title: "大将戦 紅白", en: "GENERAL BATTLE",
@@ -621,7 +621,7 @@ export function createFixtureState(now: Date): CasinoState {
 
   seedBets(state, "field-06", 68, "win", { t1: 1600, t2: 2400, t3: 800, t4: 1200, t5: 900, t6: 1400, t7: 600, t8: 1000 }, past);
   seedBets(state, "field-10", 41, "win", { t1: 900, t2: 2100, t3: 600, t4: 1500, t5: 1100, t6: 800, t7: 1300, t8: 700 }, past);
-  seedBets(state, "race-11", 83, "win", { t1: 2200, t2: 1500, t3: 700, t4: 1800, t5: 600, t6: 2900, t7: 500, t8: 1300 }, past);
+  seedBets(state, "race-11", 83, "win", { red: 4800, white: 6700 }, past);
   seedBets(state, "special-general", 57, "win", { red: 2600, white: 1700 }, past);
   seedBets(state, "overall", 132, "win", { t1: 4200, t2: 5100, t3: 1800, t4: 3300, t5: 900, t6: 4600, t7: 700, t8: 2400 }, past);
 

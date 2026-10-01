@@ -6,10 +6,12 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readEntriesSource } from "./entries-source.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = join(root, "data", "学籍番号別出場競技.csv");
 const OUTPUT = join(root, "src", "lib", "festival", "entries.data.ts");
+if (existsSync(join(root, ".env.local"))) process.loadEnvFile(join(root, ".env.local"));
 
 /** CSV の 1 セル内で複数の出場競技を区切る文字（全角の縦棒 U+FF5C。ASCII の | ではない） */
 const SEPARATOR = "｜";
@@ -45,8 +47,8 @@ function readRows(text) {
   });
 }
 
-const text = existsSync(SOURCE) ? readFileSync(SOURCE, "utf8") : "学籍番号,出場競技\n";
-if (!existsSync(SOURCE)) console.log("[generate-entries] 個人別CSVなし：空の出場データを生成します");
+const { text, source } = await readEntriesSource(existsSync(SOURCE) ? readFileSync(SOURCE, "utf8") : null, process.env);
+console.log(`[generate-entries] 取得元：${source}`);
 const rows = readRows(text);
 
 /** 出場枠の文字列 → 辞書の添字。CSV に出てきた順に採番する */
@@ -93,7 +95,7 @@ const labelLines = [...labelIndex.keys()].map((label) => `  ${quote(label)},`).j
 const studentLines = [...students].map(([id, indexes]) => `  ${quote(id)}: [${indexes.join(",")}],`).join("\n");
 
 const output = `// 自動生成ファイル。直接編集しない。
-// 生成元: data/学籍番号別出場競技.csv
+// 生成元: ローカルCSVまたは非公開Supabase Storage（scripts/entries-source.mjs）
 // 生成コマンド: npm run entries（npm run build でも prebuild で自動実行される）
 
 /** 出場枠の辞書。CSV の "${SEPARATOR}" 区切り 1 件分をそのまま持つ（例: "大縄跳び 前半（16人目）"） */

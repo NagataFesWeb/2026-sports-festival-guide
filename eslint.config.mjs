@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
+    "github-pages/.next/**",
+    "github-pages/out/**",
     "build/**",
     "next-env.d.ts",
     // 個人資料・ローカル検証用の一時スクリプトはアプリコードではない。

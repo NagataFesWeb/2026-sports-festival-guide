@@ -22,9 +22,9 @@ export function effectiveStatus(market: Market, now: Date): MarketStatus {
   return market.status;
 }
 
-/** race 競技のみ単勝・複勝・三連単。field・overall・custom は単勝のみ */
+/** リレーのみ単勝・複勝・三連単。他の競技・overall・custom は単勝のみ */
 export function allowedKinds(market: Market): BetKind[] {
-  if (market.type === "event" && market.category === "race" && market.options.length >= 3) {
+  if (market.type === "event" && market.category === "race" && market.options.length >= 3 && /リレー|relay/i.test(market.title)) {
     return ["win", "place", "trifecta"];
   }
   return ["win"];

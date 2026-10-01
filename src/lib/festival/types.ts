@@ -21,7 +21,7 @@ export interface Team {
   sortOrder: number;
 }
 
-/** 賭式の区分。race=着順が付く（単勝・複勝・三連単）/ field=勝者（順位）だけが決まる（単勝のみ） */
+/** 賭式の区分。raceのリレーだけ単勝・複勝・三連単。他は単勝のみ。 */
 export type EventCategory = "race" | "field";
 
 /** 表示上の区分（マイページの絞り込みチップ）。式典 / トラック / フィールド / 部活動 */
@@ -65,9 +65,9 @@ export interface Event {
   location: string;
   /** 組み合わせ。未登録なら空配列 */
   entries: EventEntry[];
-  /** 順位点。index 0 が 1 位の点数。長さが足りない順位は 0 点 */
+  /** 旧データ互換用の順位点。結果入力・総合順位には使用しない。 */
   rankPoints: number[];
-  /** ヒート。最低 1 つ。着順・得点・Market はヒート単位 */
+  /** ヒート。最低 1 つ。着順・Market はヒート単位 */
   heats: Heat[];
   sortOrder: number;
   /** 対象タグ（"全員参加"・"クラス対抗"・"部活動" など） */
@@ -90,9 +90,9 @@ export interface Event {
 export interface EventResult {
   eventId: string;
   heatId: string;
-  /** 着順（teamId）。玉入れ・棒引きのように点数で決まる種目は points を直接入力し、order は点数順に並べる */
+  /** 全組の順位（teamId）。先頭が1位。玉入れ・棒引きも同じ形式。 */
   order: string[];
-  /** チームごとの獲得点。通常は rankPoints から自動計算するが、実行委員が手で上書きできる */
+  /** 旧データ互換用。新しい結果は空オブジェクトで、得点は入力・計算しない。 */
   points: Record<string, number>;
   confirmedAt: string;
 }
@@ -113,6 +113,6 @@ export interface InviteEntry {
 export interface Settings {
   /** 最終精算の実行時刻。null なら未実施 */
   finalSettledAt: string | null;
-  /** 得点・順位を表側に公開した時刻。null なら非公開（閉会式で実行委員が公開する） */
+  /** 総合順位を表側に公開した時刻。null なら非公開（閉会式で実行委員が公開する） */
   scoresPublishedAt: string | null;
 }

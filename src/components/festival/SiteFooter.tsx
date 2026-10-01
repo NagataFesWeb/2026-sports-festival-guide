@@ -3,17 +3,16 @@ import { HiddenDoor } from "./HiddenDoor";
 import Link from "next/link";
 
 /** 黒地のフッター（トップ・ログイン・ランキング） */
-export function SiteFooter() {
+export function SiteFooter({ staticPreview = false }: { staticPreview?: boolean }) {
   return (
     <footer className="bg-om-ink px-[clamp(18px,5vw,60px)] pt-[30px] pb-10 text-[rgba(245,242,233,.4)]">
       <div className="mx-auto flex max-w-[1080px] flex-wrap items-center justify-between gap-[14px] text-[11px]">
         <div className="font-display tracking-[0.28em] text-[rgba(245,242,233,.75)]">
-          NAGATA <HiddenDoor tone="dark" />TH ・ 2026
+          NAGATA {staticPreview ? "79" : <HiddenDoor tone="dark" />}TH ・ 2026
         </div>
         <div className="flex items-center gap-[14px]">
-          <Link href="/admin?tab=results" className="inline-flex min-h-11 items-center text-om-paper!">実行委員 管理・結果入力</Link>
-          <span>・</span>
-          <span>校内限定公開</span>
+          {!staticPreview && <><Link href="/admin?tab=results" className="inline-flex min-h-11 items-center text-om-paper!">実行委員 管理・結果入力</Link><span>・</span></>}
+          <span>{staticPreview ? "GitHub Pages 暫定版" : "校内限定公開"}</span>
         </div>
       </div>
     </footer>

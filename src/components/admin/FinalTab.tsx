@@ -68,9 +68,9 @@ export function FinalTab({ preview }: { preview: SettlementPreview }) {
       </div>
 
       <div className="adm-card">
-        <h2 className="adm-title">得点・順位の公開は別の操作です</h2>
+        <h2 className="adm-title">総合順位の公開は別の操作です</h2>
         <p className="adm-note">
-          閉会式で表側に得点と順位を出すのは「得点」タブの「得点を公開する」です。最終精算はカジノのポイント精算だけを行います。
+          閉会式でトップに順位を出すのは「順位公開」タブの「総合順位を公開する」です。最終精算はカジノのポイント精算だけを行います。
         </p>
       </div>
     </section>

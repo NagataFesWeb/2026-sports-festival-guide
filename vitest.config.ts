@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.mjs"],
     env: {
       // テスト中はメモリ DB をファイルに書き出さない
       DB_PERSIST: "0",

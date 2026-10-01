@@ -30,7 +30,6 @@ import {
   unpublishScores,
   updateMarketDeadline,
   type AdminResult,
-  type EventResultInput,
   type SettleSummary,
 } from "@/lib/admin/service";
 import { endSession, requireAdmin } from "@/lib/auth/session";
@@ -39,7 +38,7 @@ import type { EventEntry, Heat } from "@/lib/festival/types";
 
 const NEED_CONFIRM: ActionState = { ok: false, message: "「確認しました」にチェックを入れてから実行してください" };
 
-/** 種目・進行・結果・得点公開を変えたら表側（トップとマイページ）も作り直す */
+/** 種目・進行・結果・総合順位公開を変えたら表側（トップとマイページ）も作り直す */
 const FESTIVAL_PATHS: readonly string[] = ["/", "/me"];
 
 /** AdminResult を画面表示用の状態に変換し、成功時はページを再生成する */
@@ -57,8 +56,8 @@ function settleMessage(prefix: string, summary: SettleSummary): string {
 }
 
 /**
- * 着順の select を上から順に取り出す。
- * 途中の空欄を飛ばして入力されている場合は null（得点の対応がずれるため受け付けない）
+ * 並べ替えた全組の順位を上から順に取り出す。
+ * 途中の空欄を飛ばして入力されている場合は null（順位の欠落は受け付けない）
  */
 function orderFromForm(formData: FormData): string[] | null {
   const values = textList(formData, "order");
@@ -67,36 +66,6 @@ function orderFromForm(formData: FormData): string[] | null {
     if (values[i] === "") return null;
   }
   return filled;
-}
-
-/** 手入力の得点を着順に対応させる。数値でない欄があれば null */
-function overrideFromForm(formData: FormData, order: readonly string[]): Record<string, number> | null {
-  const values = textList(formData, "points");
-  const points: Record<string, number> = {};
-  for (let i = 0; i < order.length; i++) {
-    const v = values[i] ?? "";
-    if (!/^\d+$/.test(v)) return null;
-    points[order[i]] = Number(v);
-  }
-  return points;
-}
-
-/**
- * 得点直接入力（順位点が無い種目）の得点表。
- * scoreTeam[i] と scorePoints[i] が対になっている。空欄の行は未入力として捨てる
- */
-function scoresFromForm(formData: FormData): Record<string, number> | null {
-  const teamIds = textList(formData, "scoreTeam");
-  const values = textList(formData, "scorePoints");
-  const points: Record<string, number> = {};
-  for (let i = 0; i < teamIds.length; i++) {
-    const teamId = teamIds[i];
-    const value = values[i] ?? "";
-    if (teamId === "" || value === "") continue;
-    if (!/^\d+$/.test(value)) return null;
-    points[teamId] = Number(value);
-  }
-  return points;
 }
 
 // ---- ログアウト ----
@@ -212,7 +181,7 @@ export async function resetScheduleAction(): Promise<void> {
   for (const path of FESTIVAL_PATHS) revalidatePath(path);
 }
 
-// ---- 得点の公開 ----
+// ---- 総合順位の公開 ----
 
 export async function publishScoresAction(_prev: ActionState | null, formData: FormData): Promise<ActionState> {
   await requireAdmin();
@@ -220,7 +189,7 @@ export async function publishScoresAction(_prev: ActionState | null, formData: F
   const result = await publishScores(getRepository());
   return toState(
     result,
-    (v) => `得点・順位を公開しました（${formatDateTime(v.scoresPublishedAt)}）`,
+    (v) => `総合順位を公開しました（${formatDateTime(v.scoresPublishedAt)}）`,
     [...FESTIVAL_PATHS, "/ranking"],
   );
 }
@@ -229,7 +198,7 @@ export async function unpublishScoresAction(_prev: ActionState | null, formData:
   await requireAdmin();
   if (!checked(formData, "confirm")) return NEED_CONFIRM;
   const result = await unpublishScores(getRepository());
-  return toState(result, () => "得点・順位を非公開に戻しました", [...FESTIVAL_PATHS, "/ranking"]);
+  return toState(result, () => "総合順位を非公開に戻しました", [...FESTIVAL_PATHS, "/ranking"]);
 }
 
 // ---- Market ----
@@ -289,26 +258,9 @@ export async function confirmEventResultAction(_prev: ActionState | null, formDa
 
   const eventId = text(formData, "eventId");
   const heatId = text(formData, "heatId");
-  let input: EventResultInput;
-
-  if (text(formData, "mode") === "score") {
-    // 順位点が無い種目（玉入れ・棒引きなど）は得点を直接入力する。着順は service 側で得点順に導く
-    const points = scoresFromForm(formData);
-    if (points === null) return { ok: false, message: "得点は 0 以上の整数で入力してください" };
-    input = { points };
-  } else {
-    const order = orderFromForm(formData);
-    if (order === null) return { ok: false, message: "着順は 1 位から順に入力してください（途中の空欄は不可）" };
-
-    input = { order };
-    if (checked(formData, "override")) {
-      const parsed = overrideFromForm(formData, order);
-      if (parsed === null) return { ok: false, message: "得点は 0 以上の整数で入力してください" };
-      input = { order, points: parsed };
-    }
-  }
-
-  const result = await confirmEventResult(getRepository(), eventId, heatId, input);
+  const order = orderFromForm(formData);
+  if (order === null) return { ok: false, message: "すべての組を順位順に並べてください" };
+  const result = await confirmEventResult(getRepository(), eventId, heatId, { order });
   return toState(result, (summary) => settleMessage("結果を確定", summary), FESTIVAL_PATHS);
 }
 
@@ -323,11 +275,10 @@ export async function settleOverallAction(_prev: ActionState | null, formData: F
   await requireAdmin();
   if (!checked(formData, "confirm")) return NEED_CONFIRM;
 
-  const winner = text(formData, "winner");
-  if (!winner) return { ok: false, message: "優勝チームを選んでください" };
-
-  const result = await settleOverallMarket(getRepository(), [winner]);
-  return toState(result, (summary) => settleMessage("全体優勝を確定", summary), FESTIVAL_PATHS);
+  const order = orderFromForm(formData);
+  if (order === null) return { ok: false, message: "すべての組を順位順に並べてください" };
+  const result = await settleOverallMarket(getRepository(), order);
+  return toState(result, (summary) => settleMessage("総合順位を確定", summary), FESTIVAL_PATHS);
 }
 
 export async function settleCustomAction(_prev: ActionState | null, formData: FormData): Promise<ActionState> {

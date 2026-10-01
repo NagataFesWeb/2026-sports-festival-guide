@@ -26,7 +26,7 @@ export default async function AdminLoginPage() {
       </div>
 
       <main className="mx-auto w-full max-w-md px-4 py-8">
-        <ActionForm action={loginAction} submitLabel="ログイン" className="adm-card">
+        <ActionForm action={loginAction} submitLabel="ログイン" className="adm-card" successRedirect="/admin">
           <div className="grid gap-3">
             <label className="adm-field">
               <span>メールアドレス</span>

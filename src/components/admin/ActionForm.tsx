@@ -38,10 +38,16 @@ interface Props {
   className?: string;
   /** true: 入力欄とボタンを 1 行に並べる（表の行内で使う） */
   inline?: boolean;
+  /** 認証後はCookieを付けて新しく画面を取得する。 */
+  successRedirect?: string;
 }
 
-export function ActionForm({ action, submitLabel, children, tone = "primary", className, inline = false }: Props) {
-  const [state, formAction, pending] = useActionState(action, null);
+export function ActionForm({ action, submitLabel, children, tone = "primary", className, inline = false, successRedirect }: Props) {
+  const [state, formAction, pending] = useActionState(async (prev: ActionState | null, data: FormData) => {
+    const result = await action(prev, data);
+    if (result.ok && successRedirect) window.location.assign(successRedirect);
+    return result;
+  }, null);
 
   return (
     <form action={formAction} className={inline ? `flex flex-wrap items-end gap-2 ${className ?? ""}` : className}>

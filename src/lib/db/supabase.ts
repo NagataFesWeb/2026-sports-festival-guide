@@ -1,4 +1,5 @@
 import { DEFAULT_TRIFECTA_ODDS } from "@/lib/casino/odds";
+import { invalidateDisplayCache } from "./display-cache";
 // 本番用の永続化実装。PostgREST（Supabase の REST API）に fetch で直接アクセスする
 // service role キーを使うためサーバー側専用。npm 依存を増やさないため公式クライアントは使わない
 import type { Bet, BetKind, CasinoAccountRecord, EventCategory as MarketCategory, Market, MarketOption, MarketStatus, MarketType } from "../casino/types";
@@ -51,12 +52,19 @@ async function send(pathAndQuery: string, options: SendOptions): Promise<Respons
   if (options.prefer) headers["Prefer"] = options.prefer;
   if (options.range) headers.Range = options.range;
 
-  const res = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
-    method: options.method,
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    cache: "no-store",
-  });
+  const writing = options.method !== "GET" && options.method !== "HEAD";
+  if (writing) invalidateDisplayCache();
+  let res: Response;
+  try {
+    res = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
+      method: options.method,
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      cache: "no-store",
+    });
+  } finally {
+    if (writing) invalidateDisplayCache();
+  }
   if (!res.ok) throw new Error(`Supabase ${options.method} ${pathAndQuery} が失敗しました (${res.status}): ${await res.text()}`);
   return res;
 }

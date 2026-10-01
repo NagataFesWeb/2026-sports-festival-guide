@@ -2,6 +2,8 @@
 // 残高の増減はこのファイルと betting.ts / debt.ts でのみ行い、クライアントの計算値は受け取らない
 import { hashPassword, isValidPassword, verifyPassword } from "../auth/password";
 import { getRepository } from "../db";
+import { displayReads } from "../db/display-cache";
+import { SupabaseRepository } from "../db/supabase";
 import type { Balances, Repository } from "../db/repository";
 import { effectiveDeadline } from "../festival/schedule";
 import type { Event } from "../festival/types";
@@ -106,11 +108,12 @@ export async function getMarketView(marketId: string, studentId: string, now: Da
 
 export async function getMarketList(studentId: string, now: Date): Promise<MarketListView | null> {
   const repository = getRepository();
+  const shared = repository instanceof SupabaseRepository ? displayReads(repository) : repository;
   const [markets, account, bets, events] = await Promise.all([
-    repository.listMarkets(),
+    shared.listMarkets(),
     repository.getAccount(studentId),
-    repository.listBets(),
-    repository.listEvents(),
+    shared.listBets(),
+    shared.listEvents(),
   ]);
   if (!account) return null;
   const summaries: MarketSummary[] = markets.map((stored: Market) => {
@@ -240,11 +243,12 @@ export async function getCreditView(studentId: string, now: Date): Promise<Credi
 
 export async function getHistoryView(studentId: string, now: Date): Promise<HistoryView | null> {
   const repository = getRepository();
+  const shared = repository instanceof SupabaseRepository ? displayReads(repository) : repository;
   const [account, markets, myBets, events] = await Promise.all([
     repository.getAccount(studentId),
-    repository.listMarkets(),
+    shared.listMarkets(),
     repository.listBets({ studentId }),
-    repository.listEvents(),
+    shared.listEvents(),
   ]);
   if (!account) return null;
 

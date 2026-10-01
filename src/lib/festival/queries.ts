@@ -1,10 +1,10 @@
 // 表画面（`/`・`/me`・`/ranking`）が使うデータ取得。React には依存しない（サーバー専用）
 // 表示する値はここで組み立て、UI コンポーネントでは計算しない（AGENTS.md の規約）
-import { rankAccounts, type RankingRow } from "@/lib/casino/settlement";
-import { getRepository } from "@/lib/db";
+import type { RankingRow } from "@/lib/casino/settlement";
+import { festivalSnapshot } from "./snapshot.data";
 import { effectiveStart, programStatus, type ProgramStatus } from "./schedule";
-import { computeStandings, type StandingRow } from "./standings";
-import type { Event, EventResult, InviteEntry, Student, Team } from "./types";
+import { overallStandings, type StandingRow } from "./standings";
+import type { Event, EventResult, InviteEntry, Team } from "./types";
 
 export { normalizeStudentId } from "./student-id";
 export type { RankingRow } from "@/lib/casino/settlement";
@@ -54,7 +54,7 @@ export interface TopPageData {
   statuses: Record<string, ProgramStatus>;
   /** 種目 ID → 開始見込み（ISO 8601。未定なら null） */
   starts: Record<string, string | null>;
-  /** 得点公開後だけ入る総合順位。非公開の間は null（表側に一切出さない） */
+  /** 総合順位公開後だけ入る総合順位。非公開の間は null（表側に一切出さない） */
   standings: StandingRow[] | null;
   scoresPublishedAt: string | null;
   counts: TopCounts;
@@ -62,14 +62,7 @@ export interface TopPageData {
 
 /** トップページのデータを一括で取得する */
 export async function getTopPageData(now: Date): Promise<TopPageData> {
-  const repository = getRepository();
-  const [teams, allEvents, results, studentCount, settings] = await Promise.all([
-    repository.listTeams(),
-    repository.listEvents(),
-    repository.listEventResults(),
-    repository.countStudents(),
-    repository.getSettings(),
-  ]);
+  const { teams, events: allEvents, results, studentCount, settings, overall: markets } = festivalSnapshot;
 
   const events = [...allEvents].sort(byProgramOrder);
   const sortedTeams = [...teams].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -84,7 +77,7 @@ export async function getTopPageData(now: Date): Promise<TopPageData> {
     results,
     statuses,
     starts: startsOf(events),
-    standings: published ? computeStandings(sortedTeams, results) : null,
+    standings: published ? overallStandings(sortedTeams, markets) : null,
     scoresPublishedAt: settings.scoresPublishedAt,
     counts: {
       // 名簿が全校分（数百人）入るまでは公称の人数を出す（開発用の数人の名簿で「10 PLAYERS」にならないように）
@@ -122,13 +115,8 @@ export interface MePageData {
 
 /** マイページのデータを一括で取得する */
 export async function getMePageData(studentId: string): Promise<MePageData> {
-  const repository = getRepository();
-  const [student, inviteList, allEvents, teams] = await Promise.all([
-    repository.getStudent(studentId),
-    repository.listInvites(studentId),
-    repository.listEvents(),
-    repository.listTeams(),
-  ]);
+  const { events: allEvents, teams } = festivalSnapshot;
+  const inviteList = festivalSnapshot.invites.filter(invite => invite.studentId === studentId);
 
   const events = [...allEvents].sort(byProgramOrder);
   const sortedTeams = [...teams].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -139,21 +127,13 @@ export async function getMePageData(studentId: string): Promise<MePageData> {
   const myEvents = events.filter((event) => inviteNames.has(event.name));
 
   return {
-    student: toMeStudent(student, sortedTeams),
+    student: null,
     invites,
     myEvents,
     events,
     starts: startsOf(events),
     teams: sortedTeams,
   };
-}
-
-/** 名簿の 1 行に、組（classNo）から引いたチームを添える */
-function toMeStudent(student: Student | null, teams: readonly Team[]): MeStudent | null {
-  if (student === null) return null;
-  // Team.num は "01"〜"08"、Student.classNo は 1〜8 なので数値に直して比べる
-  const team = teams.find((t) => Number(t.num) === student.classNo) ?? null;
-  return { ...student, team };
 }
 
 /** プログラム詳細に出すヒートごとの着順（上位のみ） */
@@ -175,6 +155,10 @@ export function heatResultViews(
   limit = 3,
 ): HeatResultView[] {
   const nameById = new Map(teams.map((team) => [team.id, team.name]));
+  if (event.formation === "horse" || event.name.includes("騎馬戦")) {
+    nameById.set("red", "紅組");
+    nameById.set("white", "白組");
+  }
   const views: HeatResultView[] = [];
   for (const heat of event.heats) {
     const result = results.find((r) => r.eventId === event.id && r.heatId === heat.id);
@@ -190,10 +174,8 @@ export function heatResultViews(
 
 /** 最終順位ランキング。最終精算前は rows を空にして「未公開」を表す */
 export async function getRankingData(): Promise<{ finalSettledAt: string | null; rows: RankingRow[] }> {
-  const repository = getRepository();
-  const settings = await repository.getSettings();
+  const { settings, ranking } = festivalSnapshot;
   if (settings.finalSettledAt === null) return { finalSettledAt: null, rows: [] };
 
-  const accounts = await repository.listAccounts();
-  return { finalSettledAt: settings.finalSettledAt, rows: rankAccounts(accounts) };
+  return { finalSettledAt: settings.finalSettledAt, rows: ranking };
 }

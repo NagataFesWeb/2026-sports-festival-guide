@@ -29,8 +29,9 @@
 > テーマは表画面「爆裂」（`docs/mockup/` のモック v2 が出典）と裏画面（カジノ）「古い賭博端末」で完全に切り替える。トークンは `docs/DESIGN.festival.md`（表）と `docs/DESIGN.underground.md`（裏）に固定済み。UI を触るときは先にこれを読み、表画面はモックの CSS を正として独自のアレンジを加えない。
 >
 > データアクセスは必ず `src/lib/db/repository.ts` のインターフェース越しに行う（`getRepository()`）。環境変数が無ければメモリ実装、あれば Supabase 実装に切り替わる。
+> 2026-10-02以降、表示時のDBアクセスはカジノと管理者画面だけに限定する。表画面は `snapshot.data.ts` と出場表・台帳のみを使う。`npm run festival:sync` が管理用Repository経由でビルド時の表示データを生成する。更新は再ビルド・再デプロイ後に反映する。生成物は個人別案内を含むためGit追跡禁止。
 >
-> 例外は**出場競技表**（誰がどの競技の何人目か）。速度優先で DB を通さず、`data/学籍番号別出場競技.csv` を `scripts/generate-entries.mjs` が `src/lib/festival/entries.data.ts`（自動生成・編集禁止）に変換して同梱する。参照は `src/lib/festival/entries.ts` 経由。CSV は頻繁に差し替わるので、生成物を手で直さず必ず `npm run entries` で作り直すこと。
+> 例外は**出場競技表**（誰がどの競技の何人目か）。速度優先で表示時はDBを通さず、`data/学籍番号別出場競技.csv` を `scripts/generate-entries.mjs` が `src/lib/festival/entries.data.ts`（自動生成・編集禁止）に変換して同梱する。ローカルCSVがなければ、Supabase設定済みのビルドでは非公開Storage（既定 `festival-private/entries/2026.csv`）から取得する。取得失敗は空データへ切り替えずビルド停止。参照は `src/lib/festival/entries.ts` 経由。CSVは生成物を手で直さず `npm run entries` で再生成し、クラウド用の差し替えは `npm run entries:upload` を実行すること。
 
 ## Commands
 ```bash
@@ -39,15 +40,19 @@ npm run dev     # 起動
 npm test        # テスト
 npm run lint    # Lint・型（next typegen → eslint → tsc --noEmit）
 npm run build   # ビルド
+npm run build:pages # GitHub Pages 用の静的案内版を github-pages/out に生成
 npm run entries # 出場競技表（data/学籍番号別出場競技.csv）から静的データを生成。dev・build・test・lint の前に自動実行
+npm run entries:upload # ローカルCSVを検証し非公開Supabase Storageへ保存。旧版は退避する
+npm run festival:data # DBなしで表画面の固定データを生成（test/lint/Pages用）
+npm run festival:sync # 管理用DB取得から表画面のスナップショットを生成（dev/build前に自動実行）
 npm run db:login # Supabase CLIのブラウザ認証（初回のみ）
 npm run db:check # 接続先DBの準備確認（読み取りのみ）
 npm run db:sql -- supabase/casino-status.sql # SQLファイル実行
 npm run db:apply-casino # 原子的保存SQL→空DBの当日設定→準備確認
 ```
 
-> package.json に実装済み。アプリ用6コマンドとCLI認証・接続・SQL実行・カジノSQL適用を確認済み。CLIは開発依存、接続先は `.env.local` から取得する。スクリプトを変えたらここも直し、動くコマンドだけを残すこと。動かないコマンドを書くと未検証のまま完了宣言される。
-> テストは Vitest（`src/**/*.test.ts`、設定は `vitest.config.ts`。`@/` エイリアスが使え、`DB_PERSIST=0` でメモリ DB をファイルに書かない）。Next.js は 16 系で API が変わっているため、コードを書く前に `node_modules/next/dist/docs/` の該当ガイドを読むこと（末尾の nextjs-agent-rules は `next dev` が自動で追記する）。
+> package.json に実装済み。アプリ用7コマンドとCLI認証・接続・SQL実行・カジノSQL適用を確認済み。CLIは開発依存、接続先は `.env.local` から取得する。スクリプトを変えたらここも直し、動くコマンドだけを残すこと。動かないコマンドを書くと未検証のまま完了宣言される。
+> テストは Vitest（`src/**/*.test.ts` と `scripts/**/*.test.mjs`、設定は `vitest.config.ts`。`@/` エイリアスが使え、`DB_PERSIST=0` でメモリ DB をファイルに書かない）。Next.js は 16 系で API が変わっているため、コードを書く前に `node_modules/next/dist/docs/` の該当ガイドを読むこと（末尾の nextjs-agent-rules は `next dev` が自動で追記する）。
 >
 > 画面の目視確認は Chrome 拡張が無くてもできる: `chrome.exe --headless=new --remote-debugging-port` を起動し、DevTools Protocol で `Emulation.setDeviceMetricsOverride`（390px 幅）と `Network.setCookie`（`casino_session` / `admin_session`）を使って撮影する。`--window-size` だけでは Chrome の最小幅で狭幅の確認ができない。
 
@@ -91,4 +96,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 ## GitHubへ含めないデータ
-個人別CSV・`entries.data.ts`・原資料・ローカルDB・秘密情報は追跡禁止。CSVなしなら空データを生成する。test/lintも生成から実行する。新しい個人データはdata/または.private/へ保存し、公開コードに転記しない。
+個人別CSV・`entries.data.ts`・原資料・ローカルDB・秘密情報は追跡禁止。CSVもSupabase設定もなければ空データを生成する。Supabase設定済みでCSVがない場合は非公開Storageを取得し、失敗時は停止する。test/lintも生成から実行する。新しい個人データはdata/または.private/へ保存し、公開コードに転記しない。

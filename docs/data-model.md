@@ -1,5 +1,7 @@
 # データモデル
 
+表画面は2026-10-02以降、表示時のDBアクセスを行わない。`FestivalSnapshot`（`src/lib/festival/snapshot.ts`）にチーム・種目・競技結果・個人別招集案内・人数・公開設定・公開済み総合順位・最終精算後の個人順位だけを保存し、ビルド時に `snapshot.data.ts` を生成する。生徒氏名と口座ハッシュは含めず、未公開の総合順位・精算前の個人順位は空配列にする。個人別案内を含むため生成物をGit非追跡とし、サーバー側のqueriesだけから参照する。表示用のプログラム状態もビルド時に固定し、運営変更は再デプロイ後に反映する。DBのスキーマは変更しない。
+
 トップの人数表示はRepositoryの `countStudents()` を使用する。メモリ実装は配列の件数、Supabase実装はHEADリクエスト（`Prefer: count=exact`、`Range: 0-0`）のContent-Rangeを読む。人数表示のために名簿全行を転送しない。
 
 ```mermaid
@@ -47,7 +49,7 @@ erDiagram
         int delay_min "進行の遅延（＋）・前倒し（−）。実際の開始＝定刻＋delay_min 分"
         string location
         json entries "EVENT_ENTRY の配列"
-        json rank_points "順位点 [1位, 2位, ...]。空なら得点を直接入力する種目"
+        json rank_points "旧データ互換用。結果入力・総合順位に使用しない"
         json heats "HEAT の配列（1 つ以上）"
         int sort_order
         string participants "対象タグ（全員参加 / クラス対抗 / 部活動 …）"
@@ -70,7 +72,7 @@ erDiagram
         string event_id PK
         string heat_id PK
         json order "着順（team_id の配列。先頭が 1 位）"
-        json points "team_id → 獲得点。通常は rank_points から自動計算、手で上書き可。rank_points が空の種目は直接入力"
+        json points "旧データ互換用。新しい結果は空オブジェクト"
         timestamp confirmed_at
     }
     INVITE_ENTRY {
@@ -108,7 +110,7 @@ erDiagram
     SETTINGS {
         int id PK "常に 1"
         timestamp final_settled_at "最終精算の実行時刻。未実施は null"
-        timestamp scores_published_at "得点を表側に公開した時刻。null なら非公開"
+        timestamp scores_published_at "総合順位を表側に公開した時刻。互換性のため列名を維持"
     }
 ```
 
@@ -120,23 +122,24 @@ erDiagram
 |---|---|
 | Student | 学籍番号がID。表側の招集案内検索と `/me` の氏名表示に使う。認証に使わず、カジノ口座とも結び付けない |
 | CasinoAccount | 任意のユーザーID・パスワード（scrypt ハッシュ）・必須ニックネームを保持。ポイントと借金は別々に管理する。入場APIの入力は `userId`、署名付き Cookie の主体もユーザーID。互換性のためドメインの `studentId` とDB列 `student_id` は維持するが、値はカジノのユーザーIDで名簿照合はしない。既存口座とベットはそのまま使える。最終精算時に精算前の値を `final_balance_before` / `final_debt` に保存する |
-| Team / Event / EventEntry | 8 チーム（＝組）と種目。`entries` が組み合わせ（レーン→チーム）、`rank_points` が順位点（種目ごと。R8 演技台帳の配点）。`kind` は表示上の区分、`category` は賭式の区分 |
+| Team / Event / EventEntry | 8 チーム（＝組）と種目。`entries` が組み合わせ（レーン→チーム）、`rank_points` は旧データ互換用で計算に使わない。`kind` は表示上の区分、`category` は賭式の区分 |
 | Heat | 種目の中で独立に着順が決まる単位。リレー類は学年別（1年/2年/3年）、それ以外は「総合」1 つ。結果・Market はヒート単位 |
-| EventResult | ヒートの確定結果。実行委員は**着順**を入力し、得点は `rank_points` から自動計算（上書き可）。`rank_points` が空の種目（玉入れ・棒引き）は得点を直接入力し、着順は得点順に導く。得点板は全ヒートの `points` の合計。確定と同時に対応する Market を settled にする |
+| EventResult | ヒートの全組順位。全登録チームを1回ずつ `order` に並べて保存する。得点は入力・計算せず、新しい `points` は `{}`。確定と同時に対応するMarketをsettledにする。既に精算した同じ順位の再送では旧points・配当を保持する |
 | InviteEntry | 実行委員がCSVでアップロードする招集案内データ。学籍番号一致で検索表示（認証なし。誰の番号でも検索できる） |
-| Settings | 最終精算の実行時刻（null なら未精算。借入・返済が可能、`/ranking` は非公開）と、得点の公開時刻（null なら表側に得点を出さない） |
+| Settings | 最終精算の実行時刻（null なら未精算。借入・返済が可能、`/ranking` は非公開）と、総合順位の公開時刻（nullなら表側に順位を出さない） |
 
 ### 出場競技表（DB の外にある静的データ）
-「誰がどの競技の何人目か」は DB に入れず、CSV からビルド時に生成する JS モジュールとして配る（速度優先。機能4b）。
+「誰がどの競技の何人目か」は実行時のDB検索を使わず、CSVからビルド時に生成するJSモジュールとして配る（速度優先。機能4b）。ローカルCSVがないクラウドビルドは、サーバー専用キーで非公開Supabase StorageからCSVを取得する。
 
 | 項目 | 内容 |
 |---|---|
 | 元データ | `data/学籍番号別出場競技.csv`。見出しは `学籍番号,出場競技` の 2 列固定。1 セルに複数競技が入り、区切りは**全角縦棒 `｜`**（U+FF5C。ASCII の `|` ではない） |
+| クラウド用原本 | 非公開Storageの `festival-private/entries/2026.csv`。`npm run entries:upload` で保存し、差し替え前の原本は `entries/archive/<SHA256>.csv` に退避。匿名取得を拒否する。バケット・オブジェクト名は環境変数で変更可能 |
 | 1 件の形 | `競技名（枠）`。例: `大縄跳び 前半（16人目）`・`男女混合リレー7~8走（第1走者）`。`（）` が無ければ枠は空文字として扱う |
 | 生成物 | `src/lib/festival/entries.data.ts`（自動生成・編集禁止）。`ENTRY_LABELS`（出場枠の辞書）＋ `STUDENT_ENTRIES`（学籍番号 → 辞書の添字）＋ `ENTRY_DATA_VERSION`（生成元 CSV の SHA-256 先頭 8 桁） |
 | 生成 | `npm run entries`（`scripts/generate-entries.mjs`）。`npm run dev` / `npm run build` の前に自動実行。不正な CSV は生成時に失敗させる |
 | 参照 | `src/lib/festival/entries.ts` の `findStudentEntries()`。見つからない学籍番号は `null`（0 件と区別する） |
-| 大きさ | 909 人・出場枠 195 種で辞書化して約 22KB（gzip 約 5.6KB）。分割やフェッチはせずバンドルに同梱する |
+| 大きさ | 提供された最終版は946人・出場枠195種。辞書化してバンドルに同梱する。利用者の画面からStorageへ問い合わせない |
 
 > 学籍番号は 4 桁で **学年1桁・組1桁・出席番号2桁**（`2334` = 2年3組34番）。`studentIdParts()` で読み、名簿（STUDENT）が無くても `/me` の黒帯に学年・組を出す。名簿にある場合のチーム名・氏名は DB 由来なので後から Suspense で加わる。
 
@@ -174,8 +177,8 @@ Supabaseは `supabase/casino-atomic.sql` のサーバー専用RPCを使う。残
 
 | Market | 賭式 |
 |---|---|
-| `type=event` かつ `category=race`（着順が付く競技） | 単勝 `win`・複勝 `place`・三連単 `trifecta` |
-| `type=event` かつ `category=field` / `type=overall` | 単勝のみ |
+| `type=event` かつ `category=race` かつタイトルがリレー | 単勝 `win`・複勝 `place`・三連単 `trifecta` |
+| 非リレーの `type=event` / `category=field` / `type=overall` | 単勝のみ |
 | `type=custom` | 単勝のみ（二択） |
 
 ## ポイント・オッズ計算ロジック
@@ -221,18 +224,22 @@ Supabaseは `supabase/casino-atomic.sql` のサーバー専用RPCを使う。残
 - `/ranking` では純資産の降順で個人を並べ、あわせて精算前の `final_balance_before`（所持ポイント）と `final_debt`（借金額）も表示する。同点は同順位（1, 1, 3 方式）、同点内はユーザーID順
 - 表示名（`displayName` / `name`）は口座の `nickname`。空（ニックネーム導入前の旧口座）ならユーザーIDを表示する。生徒名簿との照合は行わない
 
-## 得点板（表画面）ロジック
+## 総合順位（表画面）
 
-実装は `src/lib/festival/standings.ts`、テストは `standings.test.ts`。
+実装は `src/lib/festival/standings.ts` の `overallStandings()`。競技得点の合計・勝利数・チーム表示順から順位を計算しない。
 
-- ヒートごとの獲得点は `EVENT_RESULT.points`（着順→`rank_points`。足りない順位は 0 点）
-- 得点板はチームごとの合計点（全種目・全ヒート）の降順。同点は同順位で、並びは 1 位回数（ヒート単位）の多い順→`sort_order`
-- 表側には `settings.scores_published_at` が null でない場合だけ表示する
-
+- `type=overall`・`status=settled` のMarketの `result_order` に実行委員が並べた全8組を保存する。配当は先頭の組を勝者として計算する。
+- 全組が1回ずつある場合だけ1〜8位として表示する。未確定、旧来の勝者だけ、重複・未知IDは `null` とし、下位順位を補わない。
+- 表側は `settings.scores_published_at` が非nullのときだけ総合順位を受け取る。総合順位未入力での公開は拒否する。
+- 旧DB列 `rank_points` と `points` は保持するが、新規結果の得点は空で入力・計算・表示しない。スキーマ変更は不要。
 
 ### 通し再生データと個人情報の分離
 `src/lib/ground-guide/playback.ts` の `Actor`（学年・組・走順または部別区分、集合点と戻り先）、`Phase`（説明、短縮再生秒数、全区分の経路）を純粋関数で生成する。`playbackFrame()` は任意時刻を経路長で補間し、区分数と識別子を保持する。DB・名簿・GPSは参照しない。
 
-個人別CSVと `entries.data.ts` はローカル限定。CSVがなければ空の辞書を生成する。テストでは実在の出場割当を固定せず、存在するCSVとの一致を検証する。
+個人別CSVと `entries.data.ts` はGit非追跡。CSVもSupabase設定もない場合は空の辞書を生成する。Supabase設定済みでローカルCSVがない場合はStorageから取得し、失敗時はビルドを止める。テストでは実在の出場割当を固定せず、存在するCSVとの一致を検証する。ローカルCSVなしの環境では辞書の参照整合性と取得処理を検証する。
 
-得点公開・非公開は `scores_published_at` だけを更新し、同時に完了した最終精算日時を古い値に戻さない。
+総合順位の公開・非公開は `scores_published_at` だけを更新し、同時に完了した最終精算日時を古い値に戻さない。
+
+### 騎馬戦の紅白予想
+
+種目別Marketのoptionsは `red / RED / 紅組` と `white / WHITE / 白組` の2件。event_id・heat_idを維持して進行の締切変更と連動する。結果はEventResult.orderとMarket.resultOrderに紅白2件を保存し、先頭を単勝の勝者にする。pointsは空。旧クラス別のベット・結果がある場合、`supabase/casino-event-rules.sql` は更新せず停止する。

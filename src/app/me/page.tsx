@@ -1,9 +1,8 @@
-// 個人の出場枠はDBを待たず表示し、実行委員の更新を同じカードに反映する。
+// 出場表・台帳・ビルド時の招集案内だけで表示し、DBに接続しない。
 import { Suspense, cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { CallGuide } from "@/components/festival/CallGuide";
 import { formatHourMinute } from "@/components/festival/format";
 import { IdSearchForm } from "@/components/festival/IdSearchForm";
@@ -15,7 +14,6 @@ import { getMePageData, normalizeStudentId } from "@/lib/festival/queries";
 
 export const metadata: Metadata = { title: "自分の当日案内 | 長田高校 第79回 体育祭" };
 const loadMePageData = cache(async (studentId: string) => {
-  await connection();
   return getMePageData(studentId);
 });
 

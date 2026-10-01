@@ -46,6 +46,12 @@ describe("賭け金の入力", () => {
 });
 
 describe("賭式", () => {
+  it.each(["大縄跳び", "騎馬戦", "玉入れ", "棒引き"])("%sは旧race設定でも単勝だけを受け付ける", (title) => {
+    const target = market({ title });
+    expect(allowedKinds(target)).toEqual(["win"]);
+    expect(placeBet(account, target, { kind: "place", selection: ["t1"], amount: 100 }, NOW, "b1")).toEqual({ ok: false, error: "invalid_kind" });
+    expect(placeBet(account, target, { kind: "trifecta", selection: ["t1", "t2", "t3"], amount: 100 }, NOW, "b1")).toEqual({ ok: false, error: "invalid_kind" });
+  });
   it("race 競技は単勝・複勝・三連単、それ以外は単勝のみ", () => {
     expect(allowedKinds(market())).toEqual(["win", "place", "trifecta"]);
     expect(allowedKinds(market({ category: "field" }))).toEqual(["win"]);

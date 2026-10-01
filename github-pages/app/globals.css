@@ -1,0 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+JP:wght@400;700;900&family=Share+Tech+Mono&family=Shippori+Mincho+B1:wght@600;800&display=swap");
+@import "../../src/app/globals.css";
+
+/* 別ディレクトリの公開用 App Router から、現行 UI のクラスを収集する。 */
+@source "../../src";
+@source "./";
+
+:root {
+  --font-anton: "Anton", "Arial Narrow", sans-serif;
+  --font-shippori-mincho: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+  --font-share-tech-mono: "Share Tech Mono", Consolas, monospace;
+  --font-noto-sans-jp: "Noto Sans JP", system-ui, sans-serif;
+}

@@ -1,6 +1,7 @@
 // 実行委員の管理操作。Repository への読み書きと保存順序だけを担い、
-// ポイント・オッズ・利子の計算は src/lib/casino/*、順位点は src/lib/festival/* の純粋関数に委譲する
+// ポイント・オッズ・利子の計算は src/lib/casino/*、順位の検証は src/lib/festival/* に委譲する
 import { effectiveStatus } from "@/lib/casino/betting";
+import { HORSE_OPTIONS, isHorseEvent } from "@/lib/casino/event-rules";
 import { finalizeAccount } from "@/lib/casino/debt";
 import { buildPool, poolTotal, DEFAULT_TRIFECTA_ODDS } from "@/lib/casino/odds";
 import { settleMarket } from "@/lib/casino/settle";
@@ -8,7 +9,8 @@ import type { Market, MarketOption, MarketStatus } from "@/lib/casino/types";
 import { getRepository, type Repository } from "@/lib/db";
 import { parseInviteCsv, parseRosterCsv } from "@/lib/festival/csv";
 import { effectiveDeadline, resetDelays, shiftFrom } from "@/lib/festival/schedule";
-import { pointsFromOrder } from "@/lib/festival/standings";
+import { validateCompleteOrder } from "@/lib/festival/result-order";
+import { overallStandings } from "@/lib/festival/standings";
 import type {
   Event,
   EventCategory,
@@ -90,16 +92,6 @@ function teamOptions(teams: readonly Team[]): MarketOption[] {
   return [...teams]
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((t) => ({ id: t.id, num: t.num, name: t.name }));
-}
-
-/** 着順の妥当性。race は 3 着まで、field は 1 着以上を必須にする */
-function validateOrder(order: readonly string[], teams: readonly Team[], category: EventCategory): string | null {
-  const need = category === "race" ? 3 : 1;
-  if (order.length < need) return `着順は${need}位まで入力してください`;
-  const ids = new Set(teams.map((t) => t.id));
-  if (!order.every((id) => ids.has(id))) return "着順に存在しないチームが含まれています";
-  if (new Set(order).size !== order.length) return "同じチームを複数の順位に指定できません";
-  return null;
 }
 
 // ---- チーム ----
@@ -299,11 +291,11 @@ export async function createEventMarket(
     type: "event",
     eventId,
     heatId,
-    category: event.category,
+    category: isHorseEvent(event) ? "field" : event.category,
     no: event.no,
     title: multi ? `${event.name} ${heat.label}` : event.name,
     en: enSuffix ? `${en} ${enSuffix}` : en,
-    options: teamOptions(teams),
+    options: isHorseEvent(event) ? HORSE_OPTIONS.map(option => ({ ...option })) : teamOptions(teams),
     deadline,
     status: "open",
     resultOrder: null,
@@ -484,37 +476,11 @@ async function persistSettlement(repo: Repository, market: Market, order: readon
 }
 
 export interface EventResultInput {
-  /** 着順（順位点がある種目は必須） */
+  /** 全組の順位。得点は入力・計算しない。 */
   order?: string[];
-  /** チームごとの得点。順位点が無い種目（玉入れ・棒引き）は必須、順位点がある種目では手動上書き */
-  points?: Record<string, number>;
 }
 
-/** 得点から着順を導く。得点の多い順、同点はチームの表示順（sortOrder） */
-function orderFromPoints(points: Record<string, number>, teams: readonly Team[]): string[] {
-  const sortOrderOf = new Map(teams.map((t) => [t.id, t.sortOrder]));
-  return Object.keys(points).sort(
-    (a, b) => (points[b] ?? 0) - (points[a] ?? 0) || (sortOrderOf.get(a) ?? 0) - (sortOrderOf.get(b) ?? 0),
-  );
-}
-
-/**
- * 精算に渡す着順。三連単があり得る race Market は着順が 3 件必要（settle.ts の requiredOrderLength）なので、
- * 得点入力から導いた着順が短いときだけ残りのチームを表示順（options の順）で埋める。
- * 埋めるのは精算用の配列だけで、EventResult に保存する着順は入力どおりのまま。
- * 配当は上位 3 着までしか見ない（odds.ts の hitKeys）ため、埋めた分が配当を変えることはない
- */
-function settlementOrder(order: readonly string[], market: Market): string[] {
-  const need = market.type === "event" && market.category === "race" && market.options.length >= 3 ? 3 : 1;
-  if (order.length >= need) return [...order];
-  const rest = market.options.map((o) => o.id).filter((id) => !order.includes(id));
-  return [...order, ...rest.slice(0, need - order.length)];
-}
-
-/**
- * 種目のヒートの結果を確定する。得点を保存し、紐づく Market があれば同時に精算する。
- * 既に確定済みの Market には触れない（2 回目の確定で二重払いしない）
- */
+/** ヒートの全組順位を保存し、対応するMarketを同時に精算する。 */
 export async function confirmEventResult(
   repo: Repository,
   eventId: string,
@@ -525,43 +491,26 @@ export async function confirmEventResult(
   if (!event) return fail("種目が見つかりません");
   if (!event.heats.some((h) => h.id === heatId)) return fail("ヒートが見つかりません");
 
+  const settings = await repo.getSettings();
+  if (settings.finalSettledAt) return fail("最終精算済みです");
   const teams = await repo.listTeams();
-  if (input.points) {
-    if (!Object.values(input.points).every(isNonNegativeInteger)) {
-      return fail("得点は 0 以上の整数で入力してください");
-    }
-    if (!Object.keys(input.points).every((id) => teams.some((t) => t.id === id))) {
-      return fail("得点に存在しないチームが含まれています");
-    }
-  }
-
-  let order: string[];
-  let points: Record<string, number>;
-  if (event.rankPoints.length > 0) {
-    // 順位点のある種目：着順を入力し、順位点から得点を計算する（points があればそれを優先）
-    if (!input.order) return fail("着順を入力してください");
-    const orderError = validateOrder(input.order, teams, event.category);
-    if (orderError) return fail(orderError);
-    order = [...input.order];
-    points = input.points ?? pointsFromOrder(order, event.rankPoints);
-  } else {
-    // 順位点が無い種目（玉入れ・棒引き）：得点を直接入力し、着順は得点の多い順に導く
-    const entries = Object.entries(input.points ?? {});
-    if (entries.length === 0) return fail("得点を1チーム以上入力してください");
-    points = Object.fromEntries(entries);
-    order = orderFromPoints(points, teams);
-  }
+  if (!input.order) return fail("着順を入力してください");
+  const orderError = validateCompleteOrder(input.order, isHorseEvent(event) ? HORSE_OPTIONS.map(option => option.id) : teams.map(t => t.id));
+  if (orderError) return fail(orderError);
+  const order = [...input.order];
+  // 既存DBの列は互換性のため残すが、新しい結果では得点を保存しない。
+  const points: Record<string, number> = {};
 
   const now = new Date();
   const result: EventResult = { eventId, heatId, order, points, confirmedAt: now.toISOString() };
   const market = (await repo.listMarkets()).find((m) => m.eventId === eventId && m.heatId === heatId);
   if (market?.status === "settled") {
     const previous = await repo.getEventResult(eventId, heatId);
-    if (JSON.stringify(previous?.order) === JSON.stringify(order) && JSON.stringify(previous?.points) === JSON.stringify(points)) return ok(NOT_SETTLED);
+    if (JSON.stringify(previous?.order) === JSON.stringify(order)) return ok(NOT_SETTLED);
     return fail("配当確定済みの結果は変更できません。運営担当へ確認してください");
   }
   if (!market) { await repo.upsertEventResult(result); return ok(NOT_SETTLED); }
-  return persistSettlement(repo, market, settlementOrder(order, market), now, result);
+  return persistSettlement(repo, market, order, now, result);
 }
 
 /** 確定したヒートの結果を取り消す。Market が確定済みの場合は取り消せない */
@@ -579,7 +528,7 @@ export async function removeEventResult(
   return ok({ eventId, heatId });
 }
 
-// ---- 進行（遅延）・得点公開 ----
+// ---- 進行（遅延）・総合順位公開 ----
 
 export interface ScheduleShiftSummary {
   /** 遅延を動かした種目数 */
@@ -611,15 +560,17 @@ export async function resetSchedule(repo: Repository): Promise<AdminResult<Sched
   return ok({ changed: changed.length });
 }
 
-/** 得点・順位を表側に公開する（閉会式で実行する） */
+/** 入力済みの総合順位を表側に公開する（閉会式で実行する）。関数名・DB列は互換用。 */
 export async function publishScores(repo: Repository): Promise<AdminResult<{ scoresPublishedAt: string }>> {
+  const [teams, markets] = await Promise.all([repo.listTeams(), repo.listMarkets()]);
+  if (!overallStandings(teams, markets)) return fail("総合順位を確定してから公開してください");
   const settings = await repo.getSettings();
   const scoresPublishedAt = settings.scoresPublishedAt ?? new Date().toISOString();
   await repo.updateSettings({ scoresPublishedAt });
   return ok({ scoresPublishedAt });
 }
 
-/** 得点・順位を非公開に戻す */
+/** 総合順位を非公開に戻す */
 export async function unpublishScores(repo: Repository): Promise<AdminResult<{ scoresPublishedAt: null }>> {
   await repo.updateSettings({ scoresPublishedAt: null });
   return ok({ scoresPublishedAt: null });
@@ -627,12 +578,15 @@ export async function unpublishScores(repo: Repository): Promise<AdminResult<{ s
 
 /** 全体優勝の Market を確定する */
 export async function settleOverallMarket(repo: Repository, order: readonly string[]): Promise<AdminResult<SettleSummary>> {
-  const market = (await repo.listMarkets()).find((m) => m.type === "overall" && m.status !== "settled");
-  if (!market) return fail("未確定の全体優勝 Market がありません");
-
+  const market = (await repo.listMarkets()).find(m => m.type === "overall");
+  if (!market) return fail("全体優勝 Market がありません。「Market」タブから作成してください");
   const teams = await repo.listTeams();
-  const orderError = validateOrder(order, teams, "field");
+  const orderError = validateCompleteOrder(order, teams.map(t => t.id));
   if (orderError) return fail(orderError);
+  if (market.status === "settled") {
+    if (JSON.stringify(market.resultOrder) === JSON.stringify(order)) return ok(NOT_SETTLED);
+    return fail("配当確定済みの総合順位は変更できません。運営担当へ確認してください");
+  }
   return persistSettlement(repo, market, order, new Date());
 }
 

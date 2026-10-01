@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CasinoAccountRecord } from "../casino/types";
 import type { Event, EventResult, Team } from "../festival/types";
 import { SupabaseRepository } from "./supabase";
+import { displayReads } from "./display-cache";
 
 const BASE = "https://example.supabase.co";
 const KEY = "sb_secret_test-key";
@@ -40,6 +41,18 @@ afterEach(() => {
 });
 
 describe("認証ヘッダ", () => {
+  it("表示キャッシュはSupabaseの書込み後に破棄される", async () => {
+    fetchMock.mockImplementation(async () => json([]));
+    const shared = displayReads(repo);
+    await shared.listMarkets();
+    await shared.listMarkets();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    await repo.upsertTeam({ id: "t1", num: "01", name: "1組", color: "#ffe600", sortOrder: 1 });
+    await shared.listMarkets();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(call(1).method).toBe("POST");
+    expect(call(2).method).toBe("GET");
+  });
   it("原子的保存はRPC一回で、競合ならfalseを返す", async () => {
     fetchMock.mockResolvedValueOnce(json(true)).mockResolvedValueOnce(json(false));
     const change = { expectedFinalSettledAt: null, expectedAccounts: [], requestKey: "bet:me:uuid", acceptBefore: "2026-10-02T01:00:00Z" };

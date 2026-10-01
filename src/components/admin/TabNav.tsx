@@ -5,7 +5,7 @@ import Link from "next/link";
 export const ADMIN_TABS = [
   { id: "schedule", label: "進行" },
   { id: "results", label: "結果入力" },
-  { id: "scores", label: "得点" },
+  { id: "scores", label: "順位公開" },
   { id: "teams", label: "チーム" },
   { id: "events", label: "種目" },
   { id: "markets", label: "Market" },
@@ -26,7 +26,7 @@ export function toAdminTab(value: string | string[] | undefined): AdminTab {
 export function TabNav({ current }: { current: AdminTab }) {
   return (
     <nav aria-label="管理メニュー" className="adm-tabs">
-      <ul className="mx-auto grid max-w-5xl grid-cols-2 gap-1 px-3 py-2 sm:grid-cols-4 lg:grid-cols-8">
+      <ul className="mx-auto grid max-w-5xl grid-cols-4 gap-1 px-3 py-2 lg:grid-cols-8">
         {ADMIN_TABS.map((tab) => (
           <li key={tab.id}>
             <Link

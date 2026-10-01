@@ -1,0 +1,17 @@
+# 個人別データは非公開Storageからビルド時に取得する。
+.private/
+.audit/
+.data/
+data/
+src/lib/festival/entries.data.ts
+src/lib/festival/snapshot.data.ts
+.env*
+.agents/
+.codex/
+github-pages/.next/
+github-pages/out/
+*.zip
+*.docx
+*.xlsx
+*.csv
+*.pdf

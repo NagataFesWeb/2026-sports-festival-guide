@@ -445,7 +445,7 @@ begin
     "name": "大縄跳び",
     "en": "LONG ROPE JUMP",
     "kind": "field",
-    "category": "race",
+    "category": "field",
     "start_time": "2026-10-02T13:25:00+09:00",
     "delay_min": 0,
     "location": "フィールド",
@@ -508,7 +508,7 @@ begin
     "name": "騎馬戦",
     "en": "KIBASEN",
     "kind": "field",
-    "category": "race",
+    "category": "field",
     "start_time": "2026-10-02T13:55:00+09:00",
     "delay_min": 0,
     "location": "フィールド",
@@ -1142,7 +1142,7 @@ begin
     "type": "event",
     "event_id": "ev-09",
     "heat_id": "g1",
-    "category": "race",
+    "category": "field",
     "no": "09",
     "title": "大縄跳び",
     "en": "LONG ROPE JUMP",
@@ -1256,50 +1256,20 @@ begin
     "type": "event",
     "event_id": "ev-11",
     "heat_id": "all",
-    "category": "race",
+    "category": "field",
     "no": "11",
     "title": "騎馬戦",
     "en": "KIBASEN",
     "options": [
       {
-        "id": "t1",
-        "num": "01",
-        "name": "1組 黄色"
+        "id": "red",
+        "num": "RED",
+        "name": "紅組"
       },
       {
-        "id": "t2",
-        "num": "02",
-        "name": "2組 水色"
-      },
-      {
-        "id": "t3",
-        "num": "03",
-        "name": "3組 白"
-      },
-      {
-        "id": "t4",
-        "num": "04",
-        "name": "4組 赤"
-      },
-      {
-        "id": "t5",
-        "num": "05",
-        "name": "5組 橙"
-      },
-      {
-        "id": "t6",
-        "num": "06",
-        "name": "6組 桃色"
-      },
-      {
-        "id": "t7",
-        "num": "07",
-        "name": "7組 緑"
-      },
-      {
-        "id": "t8",
-        "num": "08",
-        "name": "8組 青"
+        "id": "white",
+        "num": "WHITE",
+        "name": "白組"
       }
     ],
     "deadline": "2026-10-02T13:55:00+09:00",

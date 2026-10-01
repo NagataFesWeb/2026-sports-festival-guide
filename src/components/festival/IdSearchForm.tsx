@@ -6,9 +6,17 @@ interface IdSearchFormProps {
   buttonLabel: string;
   defaultValue?: string;
   inputId?: string;
+  /** 静的な案内版など、検索先のサーバーが無いときに操作を止める */
+  disabled?: boolean;
 }
 
-export function IdSearchForm({ tone, buttonLabel, defaultValue, inputId = "invite-student-id" }: IdSearchFormProps) {
+export function IdSearchForm({
+  tone,
+  buttonLabel,
+  defaultValue,
+  inputId = "invite-student-id",
+  disabled = false,
+}: IdSearchFormProps) {
   const cta = tone === "cta";
   return (
     <Form action="/me" className="flex flex-wrap items-end gap-3">
@@ -29,14 +37,16 @@ export function IdSearchForm({ tone, buttonLabel, defaultValue, inputId = "invit
           maxLength={8}
           autoComplete="off"
           defaultValue={defaultValue}
+          disabled={disabled}
           className="mt-2 h-12 w-full border-2 border-om-ink bg-white px-3 text-[16px] text-om-ink"
         />
       </div>
       <button
         type="submit"
+        disabled={disabled}
         className="h-12 cursor-pointer border-2 border-om-ink bg-om-yellow px-6 font-display text-[clamp(13px,2.4vw,16px)] tracking-[0.14em] text-om-ink shadow-[6px_6px_0_#111]"
       >
-        {buttonLabel}
+        {disabled ? "STATIC PREVIEW" : buttonLabel}
       </button>
     </Form>
   );

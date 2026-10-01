@@ -1,7 +1,6 @@
 "use server";
 
 // 実行委員ログインの Server Action
-import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/admin/action-state";
 import { verifyAdminCredentials } from "@/lib/admin/auth";
 import { raw, text } from "@/lib/admin/form";
@@ -20,6 +19,6 @@ export async function loginAction(_prev: ActionState | null, formData: FormData)
   }
 
   await startSession("admin", email);
-  // redirect は例外を投げるため try/catch の外で呼ぶ
-  redirect("/admin");
+  // Cookieの保存が完了してから、クライアントで管理画面を読み直す。
+  return { ok: true, message: "ログインしました" };
 }

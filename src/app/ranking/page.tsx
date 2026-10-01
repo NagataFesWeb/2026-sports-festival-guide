@@ -2,7 +2,6 @@
 // 最終精算が終わるまでは公開しない
 import type { Metadata } from "next";
 import Link from "next/link";
-import { connection } from "next/server";
 import { getRankingData } from "@/lib/festival/queries";
 
 export const metadata: Metadata = {
@@ -15,8 +14,7 @@ function formatNumber(value: number): string {
 }
 
 export default async function RankingPage() {
-  // 最終精算の有無を毎リクエストで確かめる（ビルド時の値を固めない）
-  await connection();
+  // ビルド時の公開用スナップショットを表示し、DBに接続しない。
   const { finalSettledAt, rows } = await getRankingData();
 
   return (

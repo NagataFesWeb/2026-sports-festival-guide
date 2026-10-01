@@ -74,201 +74,75 @@ beforeEach(() => {
   repo = new MemoryRepository();
 });
 
-describe("種目結果の確定（順位点のある種目）", () => {
-  it("紐づく Market（race-05-g1）を精算し、配当と利子を保存する", async () => {
-    const before = await repo.getAccount(FIXTURE_STUDENT_ID);
-    expect(before?.debtAmount).toBe(500);
-
+describe("全組の順位だけで結果を確定", () => {
+  it("配当・利子・全8組の着順を一度に保存し、得点を計算しない", async () => {
     const result = await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 });
-    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.settled).toBe(true);
     if (!result.ok) return;
-    expect(result.value.settled).toBe(true);
     expect(result.value.payoutTotal).toBeGreaterThan(0);
-    // 借金がある口座（2117）に利子が付く
     expect(result.value.interestApplied).toBe(1);
-
-    // 配当が全ベットに記録され、的中ベットには 1pt 以上が入る
+    expect((await repo.getAccount(FIXTURE_STUDENT_ID))?.debtAmount).toBe(550);
     const bets = await repo.listBets({ marketId: "race-05-g1" });
-    expect(bets.length).toBeGreaterThan(0);
-    expect(bets.every((b) => b.payoutAmount !== null)).toBe(true);
-    expect(bets.filter((b) => (b.payoutAmount ?? 0) > 0).length).toBeGreaterThan(0);
-
-    // 利子は 500 → floor(500 * 1.1) = 550
-    const after = await repo.getAccount(FIXTURE_STUDENT_ID);
-    expect(after?.debtAmount).toBe(550);
-
-    // Market は settled になり着順が記録される
-    const market = await repo.getMarket("race-05-g1");
-    expect(market?.status).toBe("settled");
-    expect(market?.resultOrder).toEqual(ORDER_05);
-
-    // 順位点は event.rankPoints から自動計算（男女混合リレーは 1 位 25 点）。結果はヒート単位で保存する
+    expect(bets.every(b => b.payoutAmount !== null)).toBe(true);
+    expect((await repo.getMarket("race-05-g1"))?.resultOrder).toEqual(ORDER_05);
     const saved = await repo.getEventResult("ev-05", "g1");
-    expect(saved?.heatId).toBe("g1");
     expect(saved?.order).toEqual(ORDER_05);
-    expect(saved?.points.t3).toBe(25);
-    expect(saved?.points.t5).toBe(23);
+    expect(saved?.points).toEqual({});
   });
-
-  it("2 回確定しても Market は二重に精算されない（利子も 1 回だけ）", async () => {
-    const first = await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 });
-    expect(first.ok && first.value.settled).toBe(true);
-
+  it("同じ順位の再送で配当と利子を二重に付けない", async () => {
+    await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 });
+    const before = await repo.listAccounts();
     const second = await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 });
-    expect(second.ok).toBe(true);
-    if (!second.ok) return;
-    expect(second.value).toEqual({ settled: false, payoutTotal: 0, interestApplied: 0 });
-
-    const after = await repo.getAccount(FIXTURE_STUDENT_ID);
-    expect(after?.debtAmount).toBe(550);
+    expect(second).toEqual({ ok: true, value: { settled: false, payoutTotal: 0, interestApplied: 0 } });
+    expect(await repo.listAccounts()).toEqual(before);
   });
-
-  it("ヒートごとに確定でき、他のヒートの Market は open のまま", async () => {
-    const result = await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 });
-    expect(result.ok && result.value.settled).toBe(true);
-    expect((await repo.getMarket("race-05-g1"))?.status).toBe("settled");
+  it("学年ごとの結果だけを精算する", async () => {
+    await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 });
     expect((await repo.getMarket("race-05-g2"))?.status).toBe("open");
-    // 2年のヒートも同じ種目として別に確定できる
-    const g2 = await confirmEventResult(repo, "ev-05", "g2", { order: ["t2", "t4", "t6"] });
-    expect(g2.ok && g2.value.settled).toBe(true);
-    expect((await repo.listEventResults()).filter((r) => r.eventId === "ev-05")).toHaveLength(2);
+    expect((await confirmEventResult(repo, "ev-05", "g2", { order: [...ORDER_05].reverse() })).ok).toBe(true);
+    expect((await repo.listEventResults()).filter(r => r.eventId === "ev-05")).toHaveLength(2);
   });
-
-  it("得点の手動上書きが順位点より優先される", async () => {
-    const result = await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05, points: { t3: 20, t5: 1 } });
-    expect(result.ok).toBe(true);
-    const saved = await repo.getEventResult("ev-05", "g1");
-    expect(saved?.points).toEqual({ t3: 20, t5: 1 });
+  it.each([
+    [["t3", "t5"], "1位から8位まで、すべての組を並べてください"],
+    [["t3", "t3", "t1", "t2", "t4", "t5", "t6", "t7"], "同じチームを複数の順位に指定できません"],
+    [["t3", "t5", "t99", "t1", "t2", "t4", "t6", "t7"], "着順に存在しないチームが含まれています"],
+  ])("欠落・重複・未知の組を保存せず拒否する (%s)", async (order, error) => {
+    const before = await repo.listAccounts();
+    expect(await confirmEventResult(repo, "ev-05", "g1", { order })).toEqual({ ok: false, error });
+    expect(await repo.getEventResult("ev-05", "g1")).toBeNull();
+    expect(await repo.listAccounts()).toEqual(before);
+    expect((await repo.getMarket("race-05-g1"))?.status).toBe("open");
   });
-
-  it("race 競技は 3 位まで、重複・存在しないチームは拒否する", async () => {
-    expect(await confirmEventResult(repo, "ev-05", "g1", { order: ["t3", "t5"] })).toEqual({
-      ok: false,
-      error: "着順は3位まで入力してください",
-    });
-    expect(await confirmEventResult(repo, "ev-05", "g1", { order: ["t3", "t3", "t1"] })).toEqual({
-      ok: false,
-      error: "同じチームを複数の順位に指定できません",
-    });
-    expect(await confirmEventResult(repo, "ev-05", "g1", { order: ["t3", "t5", "t99"] })).toEqual({
-      ok: false,
-      error: "着順に存在しないチームが含まれています",
-    });
-    expect(await confirmEventResult(repo, "ev-99", "g1", { order: ORDER_05 })).toEqual({
-      ok: false,
-      error: "種目が見つかりません",
-    });
-  });
-
-  it("着順の入力が無い・存在しないヒートは拒否する", async () => {
+  it("未入力・存在しない種目や学年を拒否する", async () => {
     expect(await confirmEventResult(repo, "ev-05", "g1", {})).toEqual({ ok: false, error: "着順を入力してください" });
-    // ev-05 のヒートは g1〜g3（"all" は無い）
-    expect(await confirmEventResult(repo, "ev-05", "all", { order: ORDER_05 })).toEqual({
-      ok: false,
-      error: "ヒートが見つかりません",
-    });
+    expect((await confirmEventResult(repo, "ev-99", "g1", { order: ORDER_05 })).ok).toBe(false);
+    expect((await confirmEventResult(repo, "ev-05", "all", { order: ORDER_05 })).ok).toBe(false);
   });
-
-  it("field 競技は 1 位だけで確定できる", async () => {
-    const saved = await saveEvent(repo, {
-      no: "90",
-      name: "クラス対抗綱引き",
-      en: "TUG",
-      kind: "field",
-      category: "field",
-      startTime: null,
-      location: "フィールド",
-      entries: [],
-      rankPoints: [10, 8],
-    });
-    expect(saved.ok).toBe(true);
-    if (!saved.ok) return;
-
-    const result = await confirmEventResult(repo, saved.value.id, "all", { order: ["t2"] });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    // Market が無いので精算はされないが、得点は保存される
-    expect(result.value.settled).toBe(false);
-    expect((await repo.getEventResult(saved.value.id, "all"))?.points.t2).toBe(10);
-  });
-
-  it("得点の手動上書きに負数・存在しないチームを入れると拒否する", async () => {
-    expect(await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05, points: { t3: -1 } })).toEqual({
-      ok: false,
-      error: "得点は 0 以上の整数で入力してください",
-    });
-    expect(await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05, points: { t99: 1 } })).toEqual({
-      ok: false,
-      error: "得点に存在しないチームが含まれています",
-    });
-  });
-
-  it("Market が無い種目（ev-09 大縄跳び）でも順位点だけ確定できる", async () => {
-    const result = await confirmEventResult(repo, "ev-09", "g1", { order: ["t1", "t2", "t3"] });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.settled).toBe(false);
-    expect((await repo.getEventResult("ev-09", "g1"))?.points.t1).toBe(25);
-  });
-});
-
-describe("種目結果の確定（得点入力の種目）", () => {
-  it("玉入れ（順位点なし）は得点入力で確定し、Market も精算する", async () => {
-    const result = await confirmEventResult(repo, "ev-06", "all", { points: { t5: 30, t2: 30, t1: 12 } });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.settled).toBe(true);
-    expect(result.value.payoutTotal).toBeGreaterThan(0);
-
-    // 着順は得点の多い順、同点はチームの表示順（t2 は sortOrder 2、t5 は 5）
-    const saved = await repo.getEventResult("ev-06", "all");
-    expect(saved?.order).toEqual(["t2", "t5", "t1"]);
-    expect(saved?.points).toEqual({ t5: 30, t2: 30, t1: 12 });
-    expect((await repo.getMarket("field-06"))?.resultOrder).toEqual(["t2", "t5", "t1"]);
-  });
-
-  it("得点が無い・負数・存在しないチームは拒否する", async () => {
-    expect(await confirmEventResult(repo, "ev-06", "all", {})).toEqual({
-      ok: false,
-      error: "得点を1チーム以上入力してください",
-    });
-    expect(await confirmEventResult(repo, "ev-06", "all", { points: { t1: 1.5 } })).toEqual({
-      ok: false,
-      error: "得点は 0 以上の整数で入力してください",
-    });
-    expect(await confirmEventResult(repo, "ev-06", "all", { points: { t99: 3 } })).toEqual({
-      ok: false,
-      error: "得点に存在しないチームが含まれています",
-    });
-  });
-
-  it("race Market の精算では 3 着まで埋めるが、保存する着順は入力どおり", async () => {
-    const saved = await saveEvent(repo, {
-      no: "91",
-      name: "得点制レース",
-      en: "SCORE RACE",
-      kind: "field",
-      category: "race",
-      startTime: null,
-      location: "トラック",
-      entries: [],
-      rankPoints: [],
-    });
-    expect(saved.ok).toBe(true);
-    if (!saved.ok) return;
-    const market = await createEventMarket(repo, saved.value.id, "all", "2026-10-01T15:00");
-    expect(market.ok).toBe(true);
-    if (!market.ok) return;
-
-    const result = await confirmEventResult(repo, saved.value.id, "all", { points: { t3: 5, t1: 9 } });
+  it("玉入れ・棒引きも得点なしで全組の順位を保存する", async () => {
+    const result = await confirmEventResult(repo, "ev-06", "all", { order: ORDER_05 });
     expect(result.ok && result.value.settled).toBe(true);
-
-    // 保存する着順は入力から導いた 2 件のまま
-    expect((await repo.getEventResult(saved.value.id, "all"))?.order).toEqual(["t1", "t3"]);
-    // 精算用の着順は 3 件（不足分をチームの表示順で埋める）
-    const settled = await repo.getMarket(market.value.id);
-    expect(settled?.status).toBe("settled");
-    expect(settled?.resultOrder).toEqual(["t1", "t3", "t2"]);
+    expect((await repo.getEventResult("ev-06", "all"))?.points).toEqual({});
+    expect((await repo.getMarket("field-06"))?.resultOrder).toEqual(ORDER_05);
+  });
+  it("予想対象なしでも順位を保存し、利子を付けない", async () => {
+    const result = await confirmEventResult(repo, "ev-09", "g1", { order: ORDER_05 });
+    expect(result.ok && result.value.settled).toBe(false);
+    expect((await repo.getEventResult("ev-09", "g1"))?.order).toEqual(ORDER_05);
+    expect((await repo.getEventResult("ev-09", "g1"))?.points).toEqual({});
+    expect((await repo.getAccount(FIXTURE_STUDENT_ID))?.debtAmount).toBe(500);
+  });
+  it("配当済みの旧得点データも、同じ着順の再送では保持する", async () => {
+    await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 });
+    const result = await repo.getEventResult("ev-05", "g1");
+    if (!result) throw new Error("結果がありません");
+    await repo.upsertEventResult({ ...result, points: { t3: 25 } });
+    expect((await confirmEventResult(repo, "ev-05", "g1", { order: ORDER_05 })).ok).toBe(true);
+    expect((await repo.getEventResult("ev-05", "g1"))?.points).toEqual({ t3: 25 });
+  });
+  it("最終精算後は予想対象のない結果も保存しない", async () => {
+    await repo.updateSettings({ finalSettledAt: new Date().toISOString() });
+    expect((await confirmEventResult(repo, "ev-09", "g1", { order: ORDER_05 })).ok).toBe(false);
+    expect(await repo.getEventResult("ev-09", "g1")).toBeNull();
   });
 });
 
@@ -297,18 +171,18 @@ describe("結果の取り消し", () => {
 
 describe("全体優勝・custom Market の確定", () => {
   it("全体優勝は着順を記録して精算する", async () => {
-    const result = await settleOverallMarket(repo, ["t2", "t6", "t1"]);
+    const result = await settleOverallMarket(repo, ["t2", "t6", "t1", "t3", "t4", "t5", "t7", "t8"]);
     expect(result.ok && result.value.settled).toBe(true);
     const market = await repo.getMarket("overall");
     expect(market?.status).toBe("settled");
-    expect(market?.resultOrder).toEqual(["t2", "t6", "t1"]);
+    expect(market?.resultOrder).toEqual(["t2", "t6", "t1", "t3", "t4", "t5", "t7", "t8"]);
   });
 
   it("確定済みの全体優勝 Market は 2 回精算できない", async () => {
-    await settleOverallMarket(repo, ["t2"]);
-    expect(await settleOverallMarket(repo, ["t1"])).toEqual({
+    await settleOverallMarket(repo, ORDER_05);
+    expect(await settleOverallMarket(repo, [...ORDER_05].reverse())).toEqual({
       ok: false,
-      error: "未確定の全体優勝 Market がありません",
+      error: "配当確定済みの総合順位は変更できません。運営担当へ確認してください",
     });
   });
 
@@ -633,8 +507,8 @@ describe("チーム・種目の保存", () => {
     // ev-01（開会式）には Market が無いので、締切を付けて Market を作ってから削除する
     const created = await createEventMarket(repo, "ev-01", "all", "2026-10-01T09:00");
     expect(created.ok).toBe(true);
-    // ev-01 は順位点が無いので得点入力で確定する
-    await confirmEventResult(repo, "ev-01", "all", { points: { t1: 5 } });
+    // 予想対象のある式典も全組の順位で確定する
+    await confirmEventResult(repo, "ev-01", "all", { order: ORDER_05 });
     expect(await repo.getEventResult("ev-01", "all")).not.toBeNull();
 
     const removed = await removeEvent(repo, "ev-01");
@@ -682,8 +556,9 @@ describe("進行（遅延）の操作", () => {
   });
 });
 
-describe("得点の公開", () => {
+describe("総合順位の公開", () => {
   it("公開・非公開の操作で最終精算日時を戻さない", async () => {
+    await settleOverallMarket(repo, ORDER_05);
     const finalizedAt = "2026-10-02T06:00:00.000Z";
     const settings = await repo.getSettings();
     await repo.updateSettings({ finalSettledAt: finalizedAt });
@@ -695,6 +570,7 @@ describe("得点の公開", () => {
   });
   it("公開すると時刻が記録され、2 回目は同じ時刻を返す", async () => {
     expect((await repo.getSettings()).scoresPublishedAt).toBeNull();
+    await settleOverallMarket(repo, ORDER_05);
 
     const first = await publishScores(repo);
     expect(first.ok).toBe(true);
@@ -707,6 +583,7 @@ describe("得点の公開", () => {
   });
 
   it("非公開に戻せる", async () => {
+    await settleOverallMarket(repo, ORDER_05);
     await publishScores(repo);
     expect((await unpublishScores(repo)).ok).toBe(true);
     expect((await repo.getSettings()).scoresPublishedAt).toBeNull();
@@ -786,5 +663,22 @@ describe("最終精算", () => {
     const account = await repo.getAccount(FIXTURE_STUDENT_ID);
     expect(account?.pointsBalance).toBe(740);
     expect(account?.finalBalanceBefore).toBe(1240);
+  });
+});
+
+describe("総合順位の安全な確定と公開", () => {
+  it("未確定の総合順位は公開しない", async () => {
+    expect(await publishScores(repo)).toEqual({ ok: false, error: "総合順位を確定してから公開してください" });
+    expect((await repo.getSettings()).scoresPublishedAt).toBeNull();
+  });
+  it("勝者だけの入力を拒否する", async () => {
+    expect((await settleOverallMarket(repo, ["t1"])).ok).toBe(false);
+    expect((await repo.getMarket("overall"))?.status).toBe("open");
+  });
+  it("同じ総合順位の再送では二重精算しない", async () => {
+    await settleOverallMarket(repo, ORDER_05);
+    const before = await repo.listAccounts();
+    expect((await settleOverallMarket(repo, ORDER_05)).ok).toBe(true);
+    expect(await repo.listAccounts()).toEqual(before);
   });
 });

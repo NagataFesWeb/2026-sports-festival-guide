@@ -9,7 +9,7 @@ export function TeamsTab({ teams }: { teams: Team[] }) {
       <div className="adm-card">
         <h2 className="adm-title">チーム</h2>
         <p className="adm-note mb-3">
-          チーム名とチームカラーを行ごとに保存します。カラーは得点表と組み合わせのスウォッチに使われます（{teams.length} チーム）。
+          チーム名とチームカラーを行ごとに保存します。カラーは順位表と組み合わせのスウォッチに使われます（{teams.length} チーム）。
         </p>
 
         <div className="grid gap-2">

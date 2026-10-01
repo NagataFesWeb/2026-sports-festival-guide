@@ -45,7 +45,6 @@ export function EventsTab({ events, teams, markets, selected }: Props) {
                 <th>区分</th>
                 <th>開始</th>
                 <th>場所</th>
-                <th>順位点</th>
                 <th>ヒートと Market</th>
                 <th>編集</th>
               </tr>
@@ -76,7 +75,6 @@ export function EventsTab({ events, teams, markets, selected }: Props) {
                       )}
                     </td>
                     <td>{event.location || "―"}</td>
-                    <td className="adm-num">{event.rankPoints.length === 0 ? "得点入力" : event.rankPoints.join(",")}</td>
                     <td>
                       <ul className="grid gap-1">
                         {event.heats.map((heat) => {
@@ -211,17 +209,7 @@ export function EventsTab({ events, teams, markets, selected }: Props) {
               <span>対象（「全員参加」「クラス対抗」など）</span>
               <input className="adm-input" type="text" name="participants" defaultValue={selected?.participants ?? ""} />
             </label>
-            <label className="adm-field sm:col-span-2">
-              <span>順位点（カンマ区切り。先頭が 1 位。空にすると得点を直接入力する種目になる）</span>
-              <input
-                className="adm-input"
-                type="text"
-                name="rankPoints"
-                inputMode="numeric"
-                placeholder="10,8,6,5,4,3,2,1"
-                defaultValue={(selected?.rankPoints ?? [10, 8, 6, 5, 4, 3, 2, 1]).join(",")}
-              />
-            </label>
+            <input type="hidden" name="rankPoints" value={(selected?.rankPoints ?? []).join(",")} />
           </div>
 
           <fieldset className="border-om-line mt-4 border-2 p-3">

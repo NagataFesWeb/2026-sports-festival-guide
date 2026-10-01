@@ -1,131 +1,102 @@
 "use client";
 
-// 着順の入力フォーム（順位点がある種目のヒートの確定に使う）。
-// 得点は src/lib/festival/standings.ts の pointsFromOrder で計算する（この画面では計算式を持たない）
-import { useActionState, useState } from "react";
-import { pointsFromOrder } from "@/lib/festival/standings";
-import type { ActionFn } from "./action-state";
-import { SubmitRow } from "./ActionForm";
-import { ConfirmCheck } from "./ConfirmCheck";
+// 全組を順位順に並べ、確認画面から確定する。得点は扱わない。
+import { useActionState, useRef, useState, type PointerEvent } from "react";
+import { initialOrder, moveOrder } from "@/lib/festival/result-order";
+import type { ActionFn, ActionState } from "./action-state";
+import { runResultAction } from "./result-action";
 
-export interface OrderOption {
-  id: string;
-  num: string;
-  name: string;
-}
-
+export interface OrderOption { id: string; num: string; name: string; color?: string }
 interface Props {
   action: ActionFn;
   options: OrderOption[];
-  /** 着順の入力欄の数 */
-  slots: number;
-  /** 空欄を許さない先頭の欄数（race は 3、field は 1） */
-  requiredCount: number;
   defaultOrder?: string[];
-  /** 順位点。null なら得点欄を出さない */
-  rankPoints: number[] | null;
-  /** eventId・heatId などの隠しフィールド */
   hidden?: Record<string, string>;
-  submitLabel: string;
   confirmLabel: string;
 }
 
-export function ResultEntryForm({
-  action,
-  options,
-  slots,
-  requiredCount,
-  defaultOrder = [],
-  rankPoints,
-  hidden = {},
-  submitLabel,
-  confirmLabel,
-}: Props) {
-  const [state, formAction, pending] = useActionState(action, null);
-  const [order, setOrder] = useState<string[]>(() => Array.from({ length: slots }, (_, i) => defaultOrder[i] ?? ""));
-  const [override, setOverride] = useState(false);
-  const [manual, setManual] = useState<string[]>(() => Array.from({ length: slots }, () => ""));
+export function ResultEntryForm({ action, options, defaultOrder = [], hidden = {}, confirmLabel }: Props) {
+  const [state, formAction, pending] = useActionState((previous: ActionState | null, data: FormData) => runResultAction(action, previous, data), null);
+  const [order, setOrder] = useState(() => initialOrder(options.map(o => o.id), defaultOrder));
+  const [review, setReview] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
+  const list = useRef<HTMLOListElement>(null);
+  const dragTarget = useRef<number | null>(null);
+  const byId = new Map(options.map(o => [o.id, o]));
 
-  // 入力済みの着順から順位点を割り当てる（プレビュー）
-  const points = rankPoints === null ? {} : pointsFromOrder(order.filter((id) => id !== ""), rankPoints);
-  const autoValue = (i: number): string => {
-    const teamId = order[i];
-    if (rankPoints === null || teamId === "") return "";
-    return String(points[teamId] ?? 0);
-  };
-
-  function selectAt(index: number, value: string): void {
-    setOrder((prev) => prev.map((v, i) => (i === index ? value : v)));
+  function move(from: number, to: number) {
+    if (from === to || to < 0 || to >= order.length) return;
+    setOrder(prev => moveOrder(prev, from, to));
+    setAnnouncement(`${byId.get(order[from])?.name ?? "組"}を${to + 1}位に移動しました`);
   }
-
-  function toggleOverride(next: boolean): void {
-    // 手入力に切り替えた時点の自動計算値を初期値にする
-    if (next) setManual(Array.from({ length: slots }, (_, i) => autoValue(i)));
-    setOverride(next);
+  function startDrag(event: PointerEvent<HTMLButtonElement>, from: number) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragTarget.current = from;
+    setDrag({ from, to: from });
+  }
+  function updateDrag(event: PointerEvent<HTMLButtonElement>) {
+    if (!drag || !list.current) return;
+    const rows = Array.from(list.current.children);
+    const target = rows.findIndex(row => event.clientY < row.getBoundingClientRect().bottom);
+    const to = target === -1 ? order.length - 1 : target;
+    dragTarget.current = to;
+    setDrag({ from: drag.from, to });
+  }
+  function finishDrag(event: PointerEvent<HTMLButtonElement>) {
+    if (drag) move(drag.from, dragTarget.current ?? drag.from);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    dragTarget.current = null;
+    setDrag(null);
   }
 
   return (
-    <form action={formAction}>
-      {Object.entries(hidden).map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={value} />
-      ))}
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        {order.map((selected, i) => (
-          <div key={i} className="flex flex-wrap items-end gap-2">
-            <label className="adm-field min-w-0 flex-1 basis-40">
-              <span>
-                {i + 1}位{i < requiredCount ? "（必須）" : ""}
+    <form action={formAction} onSubmit={event => { if (!review) event.preventDefault(); }}>
+      {Object.entries(hidden).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
+      {order.map(id => <input key={id} type="hidden" name="order" value={id} />)}
+      {review && <input type="hidden" name="confirm" value="on" />}
+      <p className="adm-note mb-2">
+        {options.length === 2 ? (review ? "上の組が勝者です。確認して確定してください。" : "勝った組を上にしてください。↑↓で並べ替えられます。") :
+          review ? "上から1位〜8位です。組と順位を確認して確定してください。" : "上から1位〜8位。左のつまみをドラッグするか、↑↓で並べ替えてください。"}
+      </p>
+      <fieldset disabled={pending}>
+        <ol ref={list} className="adm-order-list" aria-label="順位の並べ替え">
+          {order.map((id, index) => {
+            const option = byId.get(id);
+            if (!option) return null;
+            return <li key={id} className="adm-order-row" data-target={drag?.to === index ? "true" : undefined}>
+              {!review && <button type="button" className="adm-btn adm-order-handle" aria-label={`${option.name}をドラッグして移動`}
+                onPointerDown={event => startDrag(event, index)} onPointerMove={updateDrag} onPointerUp={finishDrag}
+                onPointerCancel={() => { dragTarget.current = null; setDrag(null); }}
+                onKeyDown={event => {
+                  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                    event.preventDefault();
+                    move(index, index + (event.key === "ArrowUp" ? -1 : 1));
+                  }
+                }}>↕</button>}
+              <span className="adm-num">{index + 1}位</span>
+              <span className="adm-order-name">
+                {option.color && <span className="adm-swatch" style={{ background: option.color }} aria-hidden="true" />}
+                {option.name}
               </span>
-              <select
-                className="adm-input"
-                name="order"
-                value={selected}
-                required={i < requiredCount}
-                onChange={(e) => selectAt(i, e.target.value)}
-              >
-                <option value="">―</option>
-                {options.map((option) => (
-                  <option
-                    key={option.id}
-                    value={option.id}
-                    // 同じ対象を 2 つの順位に選べないようにする
-                    disabled={option.id !== selected && order.includes(option.id)}
-                  >
-                    {option.num} {option.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {rankPoints !== null && (
-              <label className="adm-field basis-24">
-                <span>{override ? "得点(手入力)" : "得点(自動)"}</span>
-                <input
-                  className="adm-input"
-                  type="text"
-                  name="points"
-                  inputMode="numeric"
-                  readOnly={!override}
-                  value={override ? (manual[i] ?? "") : autoValue(i)}
-                  onChange={(e) => setManual((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))}
-                />
-              </label>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {rankPoints !== null && (
-        <label className="adm-check mt-1">
-          <input type="checkbox" name="override" checked={override} onChange={(e) => toggleOverride(e.target.checked)} />
-          <span>得点を手入力する（順位点の自動計算を使わない）</span>
-        </label>
-      )}
-
-      <div className="grid">
-        <ConfirmCheck label={confirmLabel} />
-      </div>
-      <SubmitRow pending={pending} label={submitLabel} state={state} />
+              {!review && <span className="flex gap-1">
+                <button type="button" className="adm-btn adm-order-move" disabled={index === 0} aria-label={`${option.name}を上へ`} onClick={() => move(index, index - 1)}>↑</button>
+                <button type="button" className="adm-btn adm-order-move" disabled={index === order.length - 1} aria-label={`${option.name}を下へ`} onClick={() => move(index, index + 1)}>↓</button>
+              </span>}
+            </li>;
+          })}
+        </ol>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {review ? <>
+            <p className="adm-note w-full">{confirmLabel}</p>
+            <button type="button" className="adm-btn" onClick={() => setReview(false)}>並べ替えに戻る</button>
+            <button type="submit" className="adm-btn" data-tone="primary">{pending ? "処理中…" : "この順で確定する"}</button>
+          </> : <button type="button" className="adm-btn" data-tone="primary" disabled={order.length === 0} onClick={() => setReview(true)}>順位を確認する →</button>}
+        </div>
+      </fieldset>
+      <p className="sr-only" role="status">{announcement}</p>
+      <p role="status" aria-live="polite" className="adm-status mt-2" data-ok={state?.ok}>{state?.message ?? ""}</p>
     </form>
   );
 }

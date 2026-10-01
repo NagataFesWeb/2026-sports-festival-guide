@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import { useSiteMotion } from "@/components/SiteMotion";
 import { useIntro } from "./HomeExperience";
 
-/** バーを進める間隔と 1 回の増分（140ms × 20 回 = 2.8 秒で満タン） */
-const TICK_MS = 140;
+/** 初回演出も操作を待たせないよう、約0.9秒で終了する。 */
+const TICK_MS = 30;
 const STEP = 5;
 /** 100% の「爆裂」を見せてからフェードする */
-const HOLD_MS = 700;
+const HOLD_MS = 100;
 /** 満タンから消えるまでのフェード */
-const FADE_MS = 300;
+const FADE_MS = 150;
 
 /** 進み具合に応じた小さなラベル（モックの loadLabel） */
 function loadLabel(progress: number): string {

@@ -15,7 +15,6 @@ import { TeamsTab } from "@/components/admin/TeamsTab";
 import { marketSummaries, settlementPreview } from "@/lib/admin/service";
 import { requireAdmin } from "@/lib/auth/session";
 import { getRepository } from "@/lib/db";
-import { computeStandings } from "@/lib/festival/standings";
 import type { Event, Team } from "@/lib/festival/types";
 import { logoutAction } from "./actions";
 
@@ -48,7 +47,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
   const params = await searchParams;
   const tab = toAdminTab(params.tab);
-  const content = await renderTab(tab, first(params.event));
+  const content = await renderTab(tab, first(params.event), first(params.heat));
 
   return (
     <>
@@ -78,7 +77,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 }
 
 /** タブごとの読み込みと描画。AdminTab を網羅する（漏れると型エラーになる） */
-async function renderTab(tab: AdminTab, selectedEventId: string | undefined): Promise<ReactNode> {
+async function renderTab(tab: AdminTab, selectedEventId: string | undefined, selectedHeatId: string | undefined): Promise<ReactNode> {
   const repo = getRepository();
 
   switch (tab) {
@@ -87,22 +86,8 @@ async function renderTab(tab: AdminTab, selectedEventId: string | undefined): Pr
       return <ScheduleTab events={byProgramOrder(events)} />;
     }
     case "scores": {
-      const [teams, events, results, settings] = await Promise.all([
-        repo.listTeams(),
-        repo.listEvents(),
-        repo.listEventResults(),
-        repo.getSettings(),
-      ]);
-      const sortedTeams = bySortOrder(teams);
-      return (
-        <ScoresTab
-          teams={sortedTeams}
-          events={byProgramOrder(events)}
-          results={results}
-          standings={computeStandings(sortedTeams, results)}
-          scoresPublishedAt={settings.scoresPublishedAt}
-        />
-      );
+      const [teams, markets, settings] = await Promise.all([repo.listTeams(), repo.listMarkets(), repo.getSettings()]);
+      return <ScoresTab teams={bySortOrder(teams)} markets={markets} scoresPublishedAt={settings.scoresPublishedAt} />;
     }
     case "teams": {
       const teams: Team[] = bySortOrder(await repo.listTeams());
@@ -131,11 +116,11 @@ async function renderTab(tab: AdminTab, selectedEventId: string | undefined): Pr
       return (
         <ResultsTab
           selectedEventId={selectedEventId}
+          selectedHeatId={selectedHeatId}
           events={byProgramOrder(events)}
           teams={sortedTeams}
           results={results}
           markets={markets}
-          standings={computeStandings(sortedTeams, results)}
         />
       );
     }
