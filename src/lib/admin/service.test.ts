@@ -273,10 +273,10 @@ describe("Market の作成・締切", () => {
     });
   });
 
-  it("全体優勝・custom Market を作れる（ヒートは持たない）", async () => {
+  it("学年別全体優勝・custom Market を作れる", async () => {
     const overall = await createOverallMarket(repo, "2026-10-01T16:00");
     expect(overall.ok && overall.value.no).toBe("*");
-    if (overall.ok) expect(overall.value.heatId).toBeNull();
+    if (overall.ok) expect(overall.value.heatId).toBe("g1");
     const custom = await createCustomMarket(repo, {
       title: "大将戦 青黄",
       en: "",

@@ -24,7 +24,7 @@ export interface Market {
   type: MarketType;
   /** type=event のときは対応する種目 ID。overall・custom は null */
   eventId: string | null;
-  /** type=event のときは対応するヒート ID（学年別レースなど）。overall・custom は null */
+  /** eventのヒートID、学年別overallはg1〜g3。旧overall・customはnull */
   heatId: string | null;
   /** type=event のときのみ意味を持つ */
   category: EventCategory | null;

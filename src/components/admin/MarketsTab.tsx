@@ -123,8 +123,9 @@ export function MarketsTab({ rows }: { rows: MarketSummaryRow[] }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="adm-card">
           <h2 className="adm-title">全体優勝の Market を作る</h2>
-          <p className="adm-note">対象は登録済みの全チームです。</p>
+          <p className="adm-note">学年ごとに1〜8組の優勝を予想します。</p>
           <ActionForm action={createOverallMarketAction} submitLabel="作成する" className="mt-2">
+            <label className="adm-field"><span>学年</span><select className="adm-input" name="grade" required>{[1, 2, 3].map(grade => <option key={grade} value={grade}>{grade}年</option>)}</select></label>
             <label className="adm-field">
               <span>締切</span>
               <input className="adm-input" type="datetime-local" name="deadline" required />

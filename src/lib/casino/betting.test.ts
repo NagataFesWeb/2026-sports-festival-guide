@@ -55,7 +55,7 @@ describe("賭式", () => {
   it("race 競技は単勝・複勝・三連単、それ以外は単勝のみ", () => {
     expect(allowedKinds(market())).toEqual(["win", "place", "trifecta"]);
     expect(allowedKinds(market({ category: "field" }))).toEqual(["win"]);
-    expect(allowedKinds(market({ type: "overall", category: null }))).toEqual(["win"]);
+    expect(allowedKinds(market({ type: "overall", category: null }))).toEqual(["win", "place", "trifecta"]);
     expect(allowedKinds(market({ type: "custom", category: null }))).toEqual(["win"]);
   });
 

@@ -1,7 +1,7 @@
 -- 2026年10月2日の初期設定。チーム・演技台帳・予想対象だけを登録する。
 -- 個人情報、口座、ベット、結果、ポイント、公開設定は含めない。
 -- 種目別は競技の開始予定に締切。学年別も同じ競技の最初の開始時刻で締め切る。
--- 全体優勝は最初の得点競技（女子リレー）開始の9:10に締切。
+-- 全体優勝は1年・2年・3年の3Market、すべて12:00に締切。
 -- 日時は+09:00の日本時間に対応。運営判断で/adminのMarket・進行から変更できる。
 DO $setup$
 begin
@@ -1279,14 +1279,14 @@ begin
     "trifecta_odds_overrides": {}
   },
   {
-    "id": "day-overall",
+    "id": "day-overall-g1",
     "type": "overall",
     "event_id": null,
-    "heat_id": null,
+    "heat_id": "g1",
     "category": null,
     "no": "*",
-    "title": "体育祭 全体優勝",
-    "en": "OVERALL WINNER",
+    "title": "体育祭 全体優勝 1年",
+    "en": "OVERALL WINNER GRADE 1",
     "options": [
       {
         "id": "t1",
@@ -1329,10 +1329,124 @@ begin
         "name": "8組 青"
       }
     ],
-    "deadline": "2026-10-02T00:10:00.000Z",
+    "deadline": "2026-10-02T12:00:00+09:00",
     "status": "open",
     "result_order": null,
-    "trifecta_odds_default": 50,
+    "trifecta_odds_default": 336,
+    "trifecta_odds_overrides": {}
+  },
+  {
+    "id": "day-overall-g2",
+    "type": "overall",
+    "event_id": null,
+    "heat_id": "g2",
+    "category": null,
+    "no": "*",
+    "title": "体育祭 全体優勝 2年",
+    "en": "OVERALL WINNER GRADE 2",
+    "options": [
+      {
+        "id": "t1",
+        "num": "01",
+        "name": "1組 黄色"
+      },
+      {
+        "id": "t2",
+        "num": "02",
+        "name": "2組 水色"
+      },
+      {
+        "id": "t3",
+        "num": "03",
+        "name": "3組 白"
+      },
+      {
+        "id": "t4",
+        "num": "04",
+        "name": "4組 赤"
+      },
+      {
+        "id": "t5",
+        "num": "05",
+        "name": "5組 橙"
+      },
+      {
+        "id": "t6",
+        "num": "06",
+        "name": "6組 桃色"
+      },
+      {
+        "id": "t7",
+        "num": "07",
+        "name": "7組 緑"
+      },
+      {
+        "id": "t8",
+        "num": "08",
+        "name": "8組 青"
+      }
+    ],
+    "deadline": "2026-10-02T12:00:00+09:00",
+    "status": "open",
+    "result_order": null,
+    "trifecta_odds_default": 336,
+    "trifecta_odds_overrides": {}
+  },
+  {
+    "id": "day-overall-g3",
+    "type": "overall",
+    "event_id": null,
+    "heat_id": "g3",
+    "category": null,
+    "no": "*",
+    "title": "体育祭 全体優勝 3年",
+    "en": "OVERALL WINNER GRADE 3",
+    "options": [
+      {
+        "id": "t1",
+        "num": "01",
+        "name": "1組 黄色"
+      },
+      {
+        "id": "t2",
+        "num": "02",
+        "name": "2組 水色"
+      },
+      {
+        "id": "t3",
+        "num": "03",
+        "name": "3組 白"
+      },
+      {
+        "id": "t4",
+        "num": "04",
+        "name": "4組 赤"
+      },
+      {
+        "id": "t5",
+        "num": "05",
+        "name": "5組 橙"
+      },
+      {
+        "id": "t6",
+        "num": "06",
+        "name": "6組 桃色"
+      },
+      {
+        "id": "t7",
+        "num": "07",
+        "name": "7組 緑"
+      },
+      {
+        "id": "t8",
+        "num": "08",
+        "name": "8組 青"
+      }
+    ],
+    "deadline": "2026-10-02T12:00:00+09:00",
+    "status": "open",
+    "result_order": null,
+    "trifecta_odds_default": 336,
     "trifecta_odds_overrides": {}
   }
 ]$data$::jsonb);

@@ -18,6 +18,13 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const props = { events: [...SEED_EVENTS], teams: [...SEED_TEAMS], markets: [], results: [] };
 
 describe("結果入力への導線とフォーム", () => {
+  it("学年別総合順位は3つの独立した8組フォームを表示する", () => {
+    const base = createFixtureState(new Date()).markets.find(m => m.type === "overall")!;
+    const markets = [1, 2, 3].map(grade => ({ ...base, id: `overall-g${grade}`, heatId: `g${grade}`, title: `体育祭 全体優勝 ${grade}年` }));
+    const html = renderToStaticMarkup(createElement(ResultsTab, { ...props, markets, selectedEventId: "overall" }));
+    expect((html.match(/name="order"/g) ?? []).length).toBe(24);
+    for (const grade of [1, 2, 3]) expect(html).toContain(`name="marketId" value="overall-g${grade}"`);
+  });
   it("騎馬戦は紅白の2組を並べ、クラス別の入力を出さない", () => {
     const html = renderToStaticMarkup(createElement(ResultsTab, { ...props, selectedEventId: "ev-11" }));
     expect((html.match(/name="order"/g) ?? []).length).toBe(2);

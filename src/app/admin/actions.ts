@@ -217,7 +217,7 @@ export async function createEventMarketAction(_prev: ActionState | null, formDat
 
 export async function createOverallMarketAction(_prev: ActionState | null, formData: FormData): Promise<ActionState> {
   await requireAdmin();
-  const result = await createOverallMarket(getRepository(), text(formData, "deadline"));
+  const result = await createOverallMarket(getRepository(), text(formData, "deadline"), Number(text(formData, "grade")));
   return toState(result, (m) => `全体優勝の Market を作成しました（締切 ${formatDateTime(m.deadline)}）`);
 }
 
@@ -278,7 +278,7 @@ export async function settleOverallAction(_prev: ActionState | null, formData: F
 
   const order = orderFromForm(formData);
   if (order === null) return { ok: false, message: "すべての組を順位順に並べてください" };
-  const result = await settleOverallMarket(getRepository(), order);
+  const result = await settleOverallMarket(getRepository(), order, text(formData, "marketId") || undefined);
   return toState(result, (summary) => settleMessage("総合順位を確定", summary), FESTIVAL_PATHS);
 }
 

@@ -167,7 +167,7 @@ async function TopContent() {
                 ))
               : standings.map((row) => (
                   <div
-                    key={row.team.id}
+                    key={`${row.grade ?? "all"}:${row.team.id}`}
                     className={`om-rise-l flex items-center gap-3 border bg-[rgba(245,242,233,.03)] px-4 py-[14px] ${
                       row.rank === 1 ? "border-om-yellow" : "border-[rgba(245,242,233,.14)]"
                     }`}
@@ -178,7 +178,7 @@ async function TopContent() {
                       {row.rank}
                     </span>
                     <span aria-hidden="true" style={{ background: row.team.color }} className="size-[14px] flex-none" />
-                    <span className="min-w-0 flex-1 truncate text-[14px] font-black">{row.team.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-[14px] font-black">{row.grade ? `${row.grade}年 ` : ""}{row.team.name}</span>
                   </div>
                 ))}
           </div>

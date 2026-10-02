@@ -15,7 +15,8 @@ export function ScoresTab({ teams, markets, scoresPublishedAt }: Props) {
   return <section className="grid gap-4">
     <div className="adm-card">
       <h2 className="adm-title mb-3">総合順位</h2>
-      {standings ? <ol className="adm-order-list">{standings.map(row => <li key={row.team.id} className="adm-order-row">
+      {standings ? <ol className="adm-order-list">{standings.map(row => <li key={`${row.grade ?? "all"}:${row.team.id}`} className="adm-order-row">
+        {row.grade && <span>{row.grade}年</span>}
         <span className="adm-num">{row.rank}位</span><span className="adm-order-name"><span className="adm-swatch" style={{ background: row.team.color }} aria-hidden="true" />{row.team.name}</span>
       </li>)}</ol> : <p className="adm-note">総合順位は未確定です。閉会式で発表する順位を入力してください。</p>}
       <Link href="/admin?tab=results&event=overall" className="adm-btn mt-3">総合順位の入力へ →</Link>

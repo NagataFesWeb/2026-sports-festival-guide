@@ -308,7 +308,9 @@ export async function createEventMarket(
 }
 
 /** 全体優勝の Market を作る */
-export async function createOverallMarket(repo: Repository, deadlineIso: string): Promise<AdminResult<Market>> {
+export async function createOverallMarket(repo: Repository, deadlineIso: string, grade = 1): Promise<AdminResult<Market>> {
+  if (![1, 2, 3].includes(grade)) return fail("学年は1〜3年で選択してください");
+  if ((await repo.listMarkets()).some(m => m.type === "overall" && m.heatId === `g${grade}`)) return fail("この学年の全体優勝は作成済みです");
   const deadline = toIsoDeadline(deadlineIso);
   if (!deadline) return fail("締切の日時を入力してください");
   const teams = await repo.listTeams();
@@ -318,11 +320,11 @@ export async function createOverallMarket(repo: Repository, deadlineIso: string)
     id: repo.newId("mkt"),
     type: "overall",
     eventId: null,
-    heatId: null,
+    heatId: `g${grade}`,
     category: null,
     no: "*",
-    title: "体育祭 全体優勝",
-    en: "OVERALL WINNER",
+    title: `体育祭 全体優勝 ${grade}年`,
+    en: `OVERALL WINNER GRADE ${grade}`,
     options: teamOptions(teams),
     deadline,
     status: "open",
@@ -590,8 +592,9 @@ export async function unpublishScores(repo: Repository): Promise<AdminResult<{ s
 }
 
 /** 全体優勝の Market を確定する */
-export async function settleOverallMarket(repo: Repository, order: readonly string[]): Promise<AdminResult<SettleSummary>> {
-  const market = (await repo.listMarkets()).find(m => m.type === "overall");
+export async function settleOverallMarket(repo: Repository, order: readonly string[], marketId?: string): Promise<AdminResult<SettleSummary>> {
+  const overalls = (await repo.listMarkets()).filter(m => m.type === "overall");
+  const market = marketId ? overalls.find(m => m.id === marketId) : overalls.length === 1 ? overalls[0] : undefined;
   if (!market) return fail("全体優勝 Market がありません。「Market」タブから作成してください");
   const teams = await repo.listTeams();
   const orderError = validateCompleteOrder(order, teams.map(t => t.id));

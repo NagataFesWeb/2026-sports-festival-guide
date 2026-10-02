@@ -178,7 +178,8 @@ Supabaseは `supabase/casino-atomic.sql` のサーバー専用RPCを使う。残
 | Market | 賭式 |
 |---|---|
 | `type=event` かつ `category=race` かつタイトルがリレー | 単勝 `win`・複勝 `place`・三連単 `trifecta` |
-| 非リレーの `type=event` / `category=field` / `type=overall` | 単勝のみ |
+| `type=overall`（学年別優勝） | 単勝・複勝・三連単 |
+| 非リレーの `type=event` / `category=field` | 単勝のみ |
 | `type=custom` | 単勝のみ（二択） |
 
 ## ポイント・オッズ計算ロジック
@@ -253,3 +254,7 @@ casino_settlement_undo（market_id主キー、snapshot jsonb、created_at）はs
 ### 演出常時有効・リセット時の受付再開（2026-10-02）
 
 演出はOS・旧保存設定にかかわらず常に有効。切り替えボタンは表示しない。選んだ競技をリセットすると、締切時刻（種目の遅延・前倒しを反映）より前ならopenへ戻す。締切時刻以降はclosedにする。締切の設定値・賭け金は変えない。メモリと実Supabaseで時刻内・時刻外・遅延の3条件を確認済み。
+
+### 学年別全体優勝（2026-10-02）
+
+`type=overall` の `heat_id` に `g1` / `g2` / `g3` を保存し、`event_id` はNULL。Market IDは各学年で独立し、ベットのmarket_idでプールと配当を分ける。旧学年未指定Marketはheat_id=NULLで読み取り互換を維持する。新規作成は同一学年の重複を拒否する。StandingRowに任意のgrade（1〜3）を追加し、3学年が揃った場合は学年順の24行を返す。スナップショットのoverall配列に3件を保存する。

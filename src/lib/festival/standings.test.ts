@@ -5,6 +5,16 @@ import { overallStandings } from "./standings";
 const order = ["t8", "t6", "t2", "t5", "t1", "t7", "t3", "t4"];
 const overall = createFixtureState(new Date()).markets.find(m => m.type === "overall")!;
 describe("入力した総合順位の表示", () => {
+  it("3学年すべての順位が揃ったときだけ学年順に公開する", () => {
+    const markets = [1, 2, 3].map(grade => ({ ...overall, id: `overall-g${grade}`, heatId: `g${grade}`, status: "settled" as const, resultOrder: grade === 2 ? [...order].reverse() : order }));
+    expect(overallStandings(SEED_TEAMS, markets.slice(0, 2))).toBeNull();
+    expect(overallStandings(SEED_TEAMS, markets.map(m => m.heatId === "g3" ? { ...m, status: "open" as const } : m))).toBeNull();
+    const rows = overallStandings(SEED_TEAMS, markets)!;
+    expect(rows).toHaveLength(24);
+    expect(rows[0]).toMatchObject({ grade: 1, rank: 1 });
+    expect(rows[8]).toMatchObject({ grade: 2, rank: 1, team: { id: order[7] } });
+    expect(rows[16]).toMatchObject({ grade: 3, rank: 1 });
+  });
   it("保存した並びを変更せず1〜8位として返す", () => {
     const rows = overallStandings(SEED_TEAMS, [{ ...overall, status: "settled", resultOrder: order }]);
     expect(rows?.map(row => row.team.id)).toEqual(order);
